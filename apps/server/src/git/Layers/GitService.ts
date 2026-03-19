@@ -26,11 +26,6 @@ const DEFAULT_MAX_OUTPUT_BYTES = 1_000_000;
 const Trace2ChunkSchema = Schema.Record(Schema.String, Schema.Unknown);
 const decodeTrace2Chunk = Schema.decodeEffect(Schema.fromJsonString(Trace2ChunkSchema));
 
-interface Trace2Monitor {
-  readonly env: NodeJS.ProcessEnv;
-  readonly flush: Effect.Effect<void, never>;
-}
-
 function quoteGitCommand(args: ReadonlyArray<string>): string {
   return `git ${args.join(" ")}`;
 }
