@@ -180,6 +180,7 @@ interface ComposerDraftStoreState {
   setStickyModel: (model: string | null | undefined) => void;
   setStickyModelOptions: (modelOptions: ProviderModelOptions | null | undefined) => void;
   setPrompt: (threadId: ThreadId, prompt: string) => void;
+  appendMentionToPrompt: (threadId: ThreadId, relativePath: string) => void;
   setTerminalContexts: (threadId: ThreadId, contexts: TerminalContextDraft[]) => void;
   setProvider: (threadId: ThreadId, provider: ProviderKind | null | undefined) => void;
   setModel: (threadId: ThreadId, model: string | null | undefined) => void;
@@ -1204,6 +1205,18 @@ export const useComposerDraftStore = create<ComposerDraftStoreState>()(
           }
           return { draftsByThreadId: nextDraftsByThreadId };
         });
+      },
+      appendMentionToPrompt: (threadId, relativePath) => {
+        if (threadId.length === 0 || relativePath.length === 0) {
+          return;
+        }
+        const state = get();
+        const existing = state.draftsByThreadId[threadId] ?? createEmptyThreadDraft();
+        const currentPrompt = existing.prompt;
+        const mention = `@${relativePath}`;
+        const separator = currentPrompt.length > 0 && !currentPrompt.endsWith(" ") ? " " : "";
+        const nextPrompt = `${currentPrompt}${separator}${mention} `;
+        state.setPrompt(threadId, nextPrompt);
       },
       setTerminalContexts: (threadId, contexts) => {
         if (threadId.length === 0) {

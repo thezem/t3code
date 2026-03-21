@@ -2,6 +2,27 @@ import type { ProjectSearchEntriesResult } from "@t3tools/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { ensureNativeApi } from "~/nativeApi";
 
+export function projectReadFileQueryOptions(input: {
+  cwd: string | null;
+  relativePath: string | null;
+}) {
+  return queryOptions({
+    queryKey: ["projects", "read-file", input.cwd, input.relativePath] as const,
+    queryFn: async () => {
+      const api = ensureNativeApi();
+      if (!input.cwd || !input.relativePath) {
+        throw new Error("Read file is unavailable.");
+      }
+      return api.projects.readFile({
+        cwd: input.cwd,
+        relativePath: input.relativePath,
+      });
+    },
+    enabled: input.cwd !== null && input.relativePath !== null,
+    staleTime: 5_000,
+  });
+}
+
 export const projectQueryKeys = {
   all: ["projects"] as const,
   searchEntries: (cwd: string | null, query: string, limit: number) =>
@@ -36,7 +57,7 @@ export function projectSearchEntriesQueryOptions(input: {
         limit,
       });
     },
-    enabled: (input.enabled ?? true) && input.cwd !== null && input.query.length > 0,
+    enabled: (input.enabled ?? true) && input.cwd !== null,
     staleTime: input.staleTime ?? DEFAULT_SEARCH_ENTRIES_STALE_TIME,
     placeholderData: (previous) => previous ?? EMPTY_SEARCH_ENTRIES_RESULT,
   });
