@@ -1,8 +1,10 @@
 import { ThreadId } from "@t3tools/contracts";
 import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, type ReactNode, useCallback, useEffect, useState } from "react";
+import { Suspense, lazy, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import ChatView from "../components/ChatView";
+import { FileViewerPanel } from "../components/FileViewerPanel";
+import { useFileViewerStore } from "../fileViewerStore";
 import { DiffWorkerPoolProvider } from "../components/DiffWorkerPoolProvider";
 import {
   DiffPanelHeaderSkeleton,
@@ -20,6 +22,8 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useStore } from "../store";
 import { Sheet, SheetPopup } from "../components/ui/sheet";
 import { Sidebar, SidebarInset, SidebarProvider, SidebarRail } from "~/components/ui/sidebar";
+import { Schema } from "effect";
+import { getLocalStorageItem, setLocalStorageItem } from "~/hooks/useLocalStorage";
 
 const DiffPanel = lazy(() => import("../components/DiffPanel"));
 const DIFF_INLINE_LAYOUT_MEDIA_QUERY = "(max-width: 1180px)";
@@ -27,6 +31,11 @@ const DIFF_INLINE_SIDEBAR_WIDTH_STORAGE_KEY = "chat_diff_sidebar_width";
 const DIFF_INLINE_DEFAULT_WIDTH = "clamp(28rem,48vw,44rem)";
 const DIFF_INLINE_SIDEBAR_MIN_WIDTH = 26 * 16;
 const COMPOSER_COMPACT_MIN_LEFT_CONTROLS_WIDTH_PX = 208;
+
+const FILE_VIEWER_DEFAULT_WIDTH = 420;
+const FILE_VIEWER_MIN_WIDTH = 280;
+const FILE_VIEWER_MAX_WIDTH_VW_RATIO = 0.5;
+const FILE_VIEWER_WIDTH_STORAGE_KEY = "chat_file_viewer_width";
 
 const DiffPanelSheet = (props: {
   children: ReactNode;
@@ -160,6 +169,89 @@ const DiffPanelInlineSidebar = (props: {
   );
 };
 
+const FileViewerResizablePanel = () => {
+  const { open } = useFileViewerStore();
+  const [width, setWidth] = useState(
+    () => getLocalStorageItem(FILE_VIEWER_WIDTH_STORAGE_KEY, Schema.Finite) ?? FILE_VIEWER_DEFAULT_WIDTH,
+  );
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    currentWidth: number;
+  } | null>(null);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!open || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const outer = outerRef.current;
+      if (!outer) return;
+      const currentWidth = outer.getBoundingClientRect().width;
+      outer.style.transitionDuration = "0ms";
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startWidth: currentWidth, currentWidth };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [open],
+  );
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const delta = e.clientX - drag.startX;
+    const maxWidth = window.innerWidth * FILE_VIEWER_MAX_WIDTH_VW_RATIO;
+    const nextWidth = Math.max(FILE_VIEWER_MIN_WIDTH, Math.min(maxWidth, drag.startWidth + delta));
+    drag.currentWidth = nextWidth;
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (outer) outer.style.width = `${nextWidth}px`;
+    if (inner) {
+      inner.style.width = `${nextWidth}px`;
+      inner.style.minWidth = `${nextWidth}px`;
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    const finalWidth = drag.currentWidth;
+    dragRef.current = null;
+    const outer = outerRef.current;
+    if (outer) outer.style.transitionDuration = "";
+    setWidth(finalWidth);
+    setLocalStorageItem(FILE_VIEWER_WIDTH_STORAGE_KEY, finalWidth, Schema.Finite);
+    document.body.style.removeProperty("cursor");
+    document.body.style.removeProperty("user-select");
+  }, []);
+
+  return (
+    <div
+      ref={outerRef}
+      className="relative flex-none h-dvh overflow-hidden border-r border-border bg-card text-foreground transition-[width] duration-200 ease-linear"
+      style={{ width: open ? width : 0 }}
+    >
+      <div ref={innerRef} className="h-full" style={{ width, minWidth: width }}>
+        <FileViewerPanel />
+      </div>
+      {/* Drag-to-resize handle on the right edge */}
+      <div
+        className="absolute right-0 top-0 h-full w-1 cursor-col-resize z-10 hover:bg-border/60 transition-colors"
+        style={{ touchAction: "none" }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      />
+    </div>
+  );
+};
+
 function ChatThreadRouteView() {
   const threadsHydrated = useStore((store) => store.threadsHydrated);
   const navigate = useNavigate();
@@ -221,7 +313,8 @@ function ChatThreadRouteView() {
   if (!shouldUseDiffSheet) {
     return (
       <>
-        <SidebarInset className="h-dvh  min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
+        <FileViewerResizablePanel />
+        <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
           <ChatView key={threadId} threadId={threadId} />
         </SidebarInset>
         <DiffPanelInlineSidebar
@@ -236,6 +329,7 @@ function ChatThreadRouteView() {
 
   return (
     <>
+      <FileViewerResizablePanel />
       <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
         <ChatView key={threadId} threadId={threadId} />
       </SidebarInset>

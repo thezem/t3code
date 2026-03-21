@@ -39,7 +39,7 @@ import { useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { useAppSettings } from "../appSettings";
 import { isElectron } from "../env";
 import { APP_STAGE_LABEL, APP_VERSION } from "../branding";
-import { isLinuxPlatform, isMacPlatform, newCommandId, newProjectId } from "../lib/utils";
+import { cn, isLinuxPlatform, isMacPlatform, newCommandId, newProjectId } from "../lib/utils";
 import { useStore } from "../store";
 import { shortcutLabelForCommand } from "../keybindings";
 import { derivePendingApprovals, derivePendingUserInputs } from "../session-logic";
@@ -91,6 +91,12 @@ import {
   shouldClearThreadSelectionOnMouseDown,
 } from "./Sidebar.logic";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
+import * as Schema from "effect/Schema";
+import { useLocalStorage } from "../hooks/useLocalStorage";
+import { FileExplorerPanel } from "./FileExplorerPanel";
+import { useFileViewerStore } from "../fileViewerStore";
+
+const SIDEBAR_TAB_SCHEMA = Schema.Union([Schema.Literal("threads"), Schema.Literal("files")]);
 
 const EMPTY_KEYBINDINGS: ResolvedKeybindingsConfig = [];
 const THREAD_PREVIEW_LIMIT = 6;
@@ -278,6 +284,41 @@ export default function Sidebar() {
     strict: false,
     select: (params) => (params.threadId ? ThreadId.makeUnsafe(params.threadId) : null),
   });
+  const [sidebarTab, setSidebarTab] = useLocalStorage(
+    "t3code:sidebar-tab",
+    "threads" as "threads" | "files",
+    SIDEBAR_TAB_SCHEMA,
+  );
+  const activeThread = threads.find((t) => t.id === routeThreadId);
+  const activeProjectCwd =
+    projects.find((p) => p.id === activeThread?.projectId)?.cwd ??
+    projects[0]?.cwd ??
+    null;
+
+  const openFile = useFileViewerStore((s) => s.openFile);
+
+  const appendMentionToPrompt = useComposerDraftStore(
+    (s) => s.appendMentionToPrompt,
+  );
+
+  const handleFileClick = useCallback(
+    (relativePath: string) => {
+      if (activeProjectCwd) {
+        openFile(activeProjectCwd, relativePath);
+      }
+    },
+    [activeProjectCwd, openFile],
+  );
+
+  const handleMentionFile = useCallback(
+    (relativePath: string) => {
+      if (routeThreadId) {
+        appendMentionToPrompt(routeThreadId, relativePath);
+      }
+    },
+    [routeThreadId, appendMentionToPrompt],
+  );
+
   const { data: keybindings = EMPTY_KEYBINDINGS } = useQuery({
     ...serverConfigQueryOptions(),
     select: (config) => config.keybindings,
@@ -1203,6 +1244,43 @@ export default function Sidebar() {
         </SidebarHeader>
       )}
 
+      {/* Tab bar */}
+      <div className="flex shrink-0 border-b border-border/60 px-2 pt-1.5">
+        <button
+          type="button"
+          className={cn(
+            "px-3 py-1.5 text-xs font-medium transition-colors rounded-t-md",
+            sidebarTab === "threads"
+              ? "text-foreground border-b-2 border-foreground/80"
+              : "text-muted-foreground/60 hover:text-foreground/70",
+          )}
+          onClick={() => setSidebarTab("threads")}
+        >
+          Threads
+        </button>
+        <button
+          type="button"
+          className={cn(
+            "px-3 py-1.5 text-xs font-medium transition-colors rounded-t-md",
+            sidebarTab === "files"
+              ? "text-foreground border-b-2 border-foreground/80"
+              : "text-muted-foreground/60 hover:text-foreground/70",
+          )}
+          onClick={() => setSidebarTab("files")}
+        >
+          Files
+        </button>
+      </div>
+
+      {sidebarTab === "files" ? (
+        <SidebarContent className="gap-0">
+          <FileExplorerPanel
+            cwd={activeProjectCwd}
+            onFileClick={handleFileClick}
+            onMentionFile={handleMentionFile}
+          />
+        </SidebarContent>
+      ) : (
       <SidebarContent className="gap-0">
         {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
           <SidebarGroup className="px-2 pt-2 pb-0">
@@ -1675,6 +1753,7 @@ export default function Sidebar() {
           )}
         </SidebarGroup>
       </SidebarContent>
+      )}
 
       <SidebarSeparator />
       <SidebarFooter className="p-2">

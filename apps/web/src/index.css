@@ -381,6 +381,15 @@ label:has(> select#reasoning-effort) select {
   background: color-mix(in srgb, var(--muted) 78%, var(--background)) !important;
 }
 
+/* File viewer panel: keep One Dark Pro token colors but match app background */
+.file-viewer-shiki .shiki {
+  background: transparent !important;
+}
+.file-viewer-shiki pre.shiki {
+  padding: 1rem;
+  margin: 0;
+}
+
 .chat-markdown table {
   width: 100%;
   border-collapse: collapse;
