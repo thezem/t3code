@@ -94,7 +94,7 @@ import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import * as Schema from "effect/Schema";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { FileExplorerPanel } from "./FileExplorerPanel";
-import { FileViewerSheet } from "./FileViewerSheet";
+import { useFileViewerStore } from "../fileViewerStore";
 
 const SIDEBAR_TAB_SCHEMA = Schema.Union([Schema.Literal("threads"), Schema.Literal("files")]);
 
@@ -289,14 +289,13 @@ export default function Sidebar() {
     "threads" as "threads" | "files",
     SIDEBAR_TAB_SCHEMA,
   );
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerPath, setViewerPath] = useState<string | null>(null);
-
   const activeThread = threads.find((t) => t.id === routeThreadId);
   const activeProjectCwd =
     projects.find((p) => p.id === activeThread?.projectId)?.cwd ??
     projects[0]?.cwd ??
     null;
+
+  const openFile = useFileViewerStore((s) => s.openFile);
 
   const appendMentionToPrompt = useComposerDraftStore(
     (s) => s.appendMentionToPrompt,
@@ -304,10 +303,11 @@ export default function Sidebar() {
 
   const handleFileClick = useCallback(
     (relativePath: string) => {
-      setViewerPath(relativePath);
-      setViewerOpen(true);
+      if (activeProjectCwd) {
+        openFile(activeProjectCwd, relativePath);
+      }
     },
-    [],
+    [activeProjectCwd, openFile],
   );
 
   const handleMentionFile = useCallback(
@@ -1271,15 +1271,6 @@ export default function Sidebar() {
           Files
         </button>
       </div>
-
-      {activeProjectCwd && (
-        <FileViewerSheet
-          open={viewerOpen}
-          onOpenChange={setViewerOpen}
-          cwd={activeProjectCwd}
-          relativePath={viewerPath}
-        />
-      )}
 
       {sidebarTab === "files" ? (
         <SidebarContent className="gap-0">
