@@ -54,10 +54,14 @@ function FileContent({
   cwd,
   relativePath,
   monacoTheme,
+  wordWrap,
+  onToggleWordWrap,
 }: {
   cwd: string;
   relativePath: string;
   monacoTheme: "vs-dark" | "vs";
+  wordWrap: "on" | "off";
+  onToggleWordWrap: () => void;
 }) {
   const queryClient = useQueryClient();
   const language = inferMonacoLanguage(relativePath);
@@ -88,14 +92,20 @@ function FileContent({
     );
   };
 
-  // Keep a ref to the latest handleSave so the onMount keyboard binding
-  // never captures a stale closure.
+  // Keep refs to the latest callbacks so onMount bindings never capture stale closures.
   const handleSaveRef = useRef(handleSave);
   handleSaveRef.current = handleSave;
+  const onToggleWordWrapRef = useRef(onToggleWordWrap);
+  onToggleWordWrapRef.current = onToggleWordWrap;
 
   const handleEditorMount: OnMount = (editor, monaco) => {
+    // Ctrl/Cmd+S → save
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       handleSaveRef.current();
+    });
+    // Alt+Z → toggle word wrap (matches VS Code's default)
+    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
+      onToggleWordWrapRef.current();
     });
   };
 
@@ -148,7 +158,7 @@ function FileContent({
             fontSize: 13,
             lineNumbers: "on",
             scrollBeyondLastLine: false,
-            wordWrap: "off",
+            wordWrap,
             automaticLayout: true,
           }}
         />
@@ -163,6 +173,8 @@ export function FileViewerPanel() {
   const { cwd, relativePath, close } = useFileViewerStore();
   const { resolvedTheme } = useTheme();
   const monacoTheme = resolvedTheme === "dark" ? "vs-dark" : "vs";
+  const [wordWrap, setWordWrap] = useState<"on" | "off">("off");
+  const toggleWordWrap = () => setWordWrap((w) => (w === "off" ? "on" : "off"));
 
   if (!cwd || !relativePath) {
     return (
@@ -203,10 +215,26 @@ export function FileViewerPanel() {
           )}
         </div>
 
+        {/* Word-wrap toggle — Alt+Z (matches VS Code) */}
+        <button
+          type="button"
+          aria-label={wordWrap === "on" ? "Disable word wrap" : "Enable word wrap"}
+          title={`Toggle word wrap (Alt+Z) — currently ${wordWrap === "on" ? "on" : "off"}`}
+          onClick={toggleWordWrap}
+          className={cn(
+            "inline-flex size-7 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-semibold transition-colors",
+            wordWrap === "on"
+              ? "bg-accent text-foreground"
+              : "text-muted-foreground/60 hover:bg-accent hover:text-foreground",
+          )}
+        >
+          ⏎
+        </button>
+
         <button
           type="button"
           aria-label="Close file viewer"
-          className="ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
           onClick={close}
         >
           <XIcon className="size-4" />
@@ -214,7 +242,13 @@ export function FileViewerPanel() {
       </div>
 
       {/* Monaco editor */}
-      <FileContent cwd={cwd} relativePath={relativePath} monacoTheme={monacoTheme} />
+      <FileContent
+        cwd={cwd}
+        relativePath={relativePath}
+        monacoTheme={monacoTheme}
+        wordWrap={wordWrap}
+        onToggleWordWrap={toggleWordWrap}
+      />
     </div>
   );
 }
