@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { type ProviderKind, DEFAULT_GIT_TEXT_GENERATION_MODEL } from "@t3tools/contracts";
-import { getModelOptions, normalizeModelSlug } from "@t3tools/shared/model";
+import { getModelOptions, inferProviderForModel, normalizeModelSlug } from "@t3tools/shared/model";
 import {
   getAppModelOptions,
   getCustomModelsForProvider,
@@ -75,11 +75,19 @@ function SettingsRouteView() {
   const keybindingsConfigPath = serverConfigQuery.data?.keybindingsConfigPath ?? null;
   const availableEditors = serverConfigQuery.data?.availableEditors;
 
-  const gitTextGenerationModelOptions = getAppModelOptions(
-    "codex",
-    settings.customCodexModels,
-    settings.textGenerationModel,
-  );
+  const gitTextGenerationProvider = inferProviderForModel(settings.textGenerationModel);
+  const gitTextGenerationModelOptions = [
+    ...getAppModelOptions(
+      "codex",
+      settings.customCodexModels,
+      gitTextGenerationProvider === "codex" ? settings.textGenerationModel : null,
+    ),
+    ...getAppModelOptions(
+      "claudeAgent",
+      settings.customClaudeModels,
+      gitTextGenerationProvider === "claudeAgent" ? settings.textGenerationModel : null,
+    ),
+  ];
   const selectedGitTextGenerationModelLabel =
     gitTextGenerationModelOptions.find(
       (option) =>

@@ -5,6 +5,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import { DEFAULT_GIT_TEXT_GENERATION_MODEL } from "@t3tools/contracts";
 import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@t3tools/shared/git";
+import { inferProviderForModel } from "@t3tools/shared/model";
 
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
@@ -314,6 +315,151 @@ const makeCodexTextGeneration = Effect.gen(function* () {
       }).pipe(Effect.ensuring(cleanup));
     });
 
+  const ClaudeEnvelopeSchema = Schema.Struct({
+    is_error: Schema.Boolean,
+    result: Schema.String,
+    structured_output: Schema.optional(Schema.Unknown),
+  });
+
+  const runClaudeJson = <S extends Schema.Top>({
+    operation,
+    cwd,
+    prompt,
+    outputSchemaJson,
+    model,
+  }: {
+    operation: "generateCommitMessage" | "generatePrContent" | "generateBranchName";
+    cwd: string;
+    prompt: string;
+    outputSchemaJson: S;
+    model?: string;
+  }): Effect.Effect<S["Type"], TextGenerationError, S["DecodingServices"]> =>
+    Effect.gen(function* () {
+      const jsonSchema = Schema.toJsonSchemaDocument(outputSchemaJson);
+      const jsonSchemaStr = JSON.stringify(jsonSchema.schema);
+      const effectiveModel = model ?? DEFAULT_GIT_TEXT_GENERATION_MODEL;
+
+      const runClaudeCommand = Effect.gen(function* () {
+        const command = ChildProcess.make(
+          "claude",
+          [
+            "--print",
+            "--no-session-persistence",
+            "--output-format",
+            "json",
+            "--model",
+            effectiveModel,
+            "--json-schema",
+            jsonSchemaStr,
+          ],
+          {
+            cwd,
+            shell: process.platform === "win32",
+            stdin: {
+              stream: Stream.make(new TextEncoder().encode(prompt)),
+            },
+          },
+        );
+
+        const child = yield* commandSpawner
+          .spawn(command)
+          .pipe(
+            Effect.mapError((cause) =>
+              normalizeCodexError(operation, cause, "Failed to spawn Claude CLI process"),
+            ),
+          );
+
+        const [stdout, stderr, exitCode] = yield* Effect.all(
+          [
+            readStreamAsString(operation, child.stdout),
+            readStreamAsString(operation, child.stderr),
+            child.exitCode.pipe(
+              Effect.map((value) => Number(value)),
+              Effect.mapError((cause) =>
+                normalizeCodexError(operation, cause, "Failed to read Claude CLI exit code"),
+              ),
+            ),
+          ],
+          { concurrency: "unbounded" },
+        );
+
+        if (exitCode !== 0) {
+          const stderrDetail = stderr.trim();
+          const stdoutDetail = stdout.trim();
+          const detail = stderrDetail.length > 0 ? stderrDetail : stdoutDetail;
+          return yield* new TextGenerationError({
+            operation,
+            detail:
+              detail.length > 0
+                ? `Claude CLI command failed: ${detail}`
+                : `Claude CLI command failed with code ${exitCode}.`,
+          });
+        }
+
+        return stdout;
+      });
+
+      const rawOutput = yield* runClaudeCommand.pipe(
+        Effect.scoped,
+        Effect.timeoutOption(CODEX_TIMEOUT_MS),
+        Effect.flatMap(
+          Option.match({
+            onNone: () =>
+              Effect.fail(
+                new TextGenerationError({ operation, detail: "Claude CLI request timed out." }),
+              ),
+            onSome: (output) => Effect.succeed(output),
+          }),
+        ),
+      );
+
+      const envelope = yield* Schema.decodeEffect(Schema.fromJsonString(ClaudeEnvelopeSchema))(
+        rawOutput,
+      ).pipe(
+        Effect.catchTag("SchemaError", (cause) =>
+          Effect.fail(
+            new TextGenerationError({
+              operation,
+              detail: "Claude returned invalid JSON envelope.",
+              cause,
+            }),
+          ),
+        ),
+      );
+
+      if (envelope.is_error) {
+        return yield* Effect.fail(
+          new TextGenerationError({
+            operation,
+            detail: `Claude returned an error: ${envelope.result}`,
+          }),
+        );
+      }
+
+      // When --json-schema is used, the CLI puts the parsed object in structured_output.
+      // The result field contains natural-language text, not the JSON we need.
+      const toTextGenerationError = (cause: unknown) =>
+        new TextGenerationError({
+          operation,
+          detail: "Claude returned invalid structured output.",
+          cause,
+        });
+
+      if (envelope.structured_output !== undefined) {
+        return yield* Schema.decodeEffect(outputSchemaJson)(envelope.structured_output).pipe(
+          Effect.mapError(toTextGenerationError),
+        );
+      }
+
+      return yield* Schema.decodeEffect(Schema.fromJsonString(outputSchemaJson))(
+        envelope.result,
+      ).pipe(
+        Effect.catchTag("SchemaError", (cause) =>
+          Effect.fail(toTextGenerationError(cause)),
+        ),
+      );
+    });
+
   const generateCommitMessage: TextGenerationShape["generateCommitMessage"] = (input) => {
     const wantsBranch = input.includeBranch === true;
 
@@ -350,7 +496,9 @@ const makeCodexTextGeneration = Effect.gen(function* () {
           body: Schema.String,
         });
 
-    return runCodexJson({
+    const runJson =
+      inferProviderForModel(input.model) === "claudeAgent" ? runClaudeJson : runCodexJson;
+    return runJson({
       operation: "generateCommitMessage",
       cwd: input.cwd,
       prompt,
@@ -393,7 +541,9 @@ const makeCodexTextGeneration = Effect.gen(function* () {
       limitSection(input.diffPatch, 40_000),
     ].join("\n");
 
-    return runCodexJson({
+    const runJson =
+      inferProviderForModel(input.model) === "claudeAgent" ? runClaudeJson : runCodexJson;
+    return runJson({
       operation: "generatePrContent",
       cwd: input.cwd,
       prompt,
@@ -445,16 +595,27 @@ const makeCodexTextGeneration = Effect.gen(function* () {
       }
       const prompt = promptSections.join("\n");
 
-      const generated = yield* runCodexJson({
-        operation: "generateBranchName",
-        cwd: input.cwd,
-        prompt,
-        outputSchemaJson: Schema.Struct({
-          branch: Schema.String,
-        }),
-        imagePaths,
-        ...(input.model ? { model: input.model } : {}),
-      });
+      const isClaude = inferProviderForModel(input.model) === "claudeAgent";
+      const generated = yield* (isClaude
+        ? runClaudeJson({
+            operation: "generateBranchName",
+            cwd: input.cwd,
+            prompt,
+            outputSchemaJson: Schema.Struct({
+              branch: Schema.String,
+            }),
+            ...(input.model ? { model: input.model } : {}),
+          })
+        : runCodexJson({
+            operation: "generateBranchName",
+            cwd: input.cwd,
+            prompt,
+            outputSchemaJson: Schema.Struct({
+              branch: Schema.String,
+            }),
+            imagePaths,
+            ...(input.model ? { model: input.model } : {}),
+          }));
 
       return {
         branch: sanitizeBranchFragment(generated.branch),
