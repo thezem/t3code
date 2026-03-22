@@ -66,7 +66,7 @@ export type DesktopUpdateStatus =
   | "error";
 
 export type DesktopRuntimeArch = "arm64" | "x64" | "other";
-export type DesktopTheme = "light" | "dark" | "system";
+export type DesktopTheme = "light" | "dark" | "system" | "one-dark-pro-darker";
 
 export interface DesktopRuntimeInfo {
   hostArch: DesktopRuntimeArch;

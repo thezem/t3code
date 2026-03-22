@@ -157,6 +157,10 @@ function getSafeTheme(rawTheme: unknown): DesktopTheme | null {
     return rawTheme;
   }
 
+  if (rawTheme === "one-dark-pro-darker") {
+    return "dark";
+  }
+
   return null;
 }
 

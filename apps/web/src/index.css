@@ -120,6 +120,24 @@
   }
 }
 
+.dark.one-dark-pro-darker {
+  color-scheme: dark;
+  --background: color-mix(in srgb, #23272e 100%, transparent);
+  --foreground: color-mix(in srgb, #abb2bf 100%, transparent);
+  --card: color-mix(in srgb, #1e2227 100%, transparent);
+  --card-foreground: color-mix(in srgb, #abb2bf 100%, transparent);
+  --popover: color-mix(in srgb, #1e2227 100%, transparent);
+  --popover-foreground: color-mix(in srgb, #abb2bf 100%, transparent);
+  --secondary: color-mix(in srgb, #2c313a 100%, transparent);
+  --secondary-foreground: color-mix(in srgb, #d7dae0 100%, transparent);
+  --muted: color-mix(in srgb, #2c313a 100%, transparent);
+  --muted-foreground: color-mix(in srgb, #636b78 100%, transparent);
+  --accent: color-mix(in srgb, #2c313a 100%, transparent);
+  --accent-foreground: color-mix(in srgb, #abb2bf 100%, transparent);
+  --border: color-mix(in srgb, #3e4452 50%, transparent);
+  --input: color-mix(in srgb, #1d1f23 100%, transparent);
+}
+
 body {
   font-family:
     "DM Sans",

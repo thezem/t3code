@@ -46,6 +46,11 @@ const THEME_OPTIONS = [
     label: "Dark",
     description: "Always use the dark theme.",
   },
+  {
+    value: "one-dark-pro-darker",
+    label: "One Dark Pro Darker",
+    description: "A deep blue-gray theme inspired by the popular VSCode theme.",
+  },
 ] as const;
 
 const TIMESTAMP_FORMAT_LABELS = {

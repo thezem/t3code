@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-type Theme = "light" | "dark" | "system";
+type Theme = "light" | "dark" | "system" | "one-dark-pro-darker";
 type ThemeSnapshot = {
   theme: Theme;
   systemDark: boolean;
@@ -22,7 +22,8 @@ function getSystemDark(): boolean {
 
 function getStored(): Theme {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw === "light" || raw === "dark" || raw === "system") return raw;
+  if (raw === "light" || raw === "dark" || raw === "system" || raw === "one-dark-pro-darker")
+    return raw;
   return "system";
 }
 
@@ -30,8 +31,12 @@ function applyTheme(theme: Theme, suppressTransitions = false) {
   if (suppressTransitions) {
     document.documentElement.classList.add("no-transitions");
   }
-  const isDark = theme === "dark" || (theme === "system" && getSystemDark());
+  const isDark =
+    theme === "dark" ||
+    theme === "one-dark-pro-darker" ||
+    (theme === "system" && getSystemDark());
   document.documentElement.classList.toggle("dark", isDark);
+  document.documentElement.classList.toggle("one-dark-pro-darker", theme === "one-dark-pro-darker");
   syncDesktopTheme(theme);
   if (suppressTransitions) {
     // Force a reflow so the no-transitions class takes effect before removal
@@ -50,7 +55,8 @@ function syncDesktopTheme(theme: Theme) {
   }
 
   lastDesktopTheme = theme;
-  void bridge.setTheme(theme).catch(() => {
+  const desktopTheme = theme === "one-dark-pro-darker" ? "dark" : theme;
+  void bridge.setTheme(desktopTheme).catch(() => {
     if (lastDesktopTheme === theme) {
       lastDesktopTheme = null;
     }
@@ -104,7 +110,13 @@ export function useTheme() {
   const theme = snapshot.theme;
 
   const resolvedTheme: "light" | "dark" =
-    theme === "system" ? (snapshot.systemDark ? "dark" : "light") : theme;
+    theme === "system"
+      ? snapshot.systemDark
+        ? "dark"
+        : "light"
+      : theme === "one-dark-pro-darker"
+        ? "dark"
+        : theme;
 
   const setTheme = useCallback((next: Theme) => {
     localStorage.setItem(STORAGE_KEY, next);
