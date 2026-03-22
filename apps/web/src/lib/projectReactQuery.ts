@@ -2,6 +2,15 @@ import type { ProjectSearchEntriesResult } from "@t3tools/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { ensureNativeApi } from "~/nativeApi";
 
+export function projectWriteFileMutationOptions() {
+  return {
+    mutationFn: async (input: { cwd: string; relativePath: string; contents: string }) => {
+      const api = ensureNativeApi();
+      return api.projects.writeFile(input);
+    },
+  };
+}
+
 export function projectReadFileQueryOptions(input: {
   cwd: string | null;
   relativePath: string | null;

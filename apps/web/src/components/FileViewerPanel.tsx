@@ -1,99 +1,103 @@
-import { Suspense, use, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2Icon, XIcon } from "lucide-react";
-import { getSharedHighlighter, type SupportedLanguages } from "@pierre/diffs";
-import { projectReadFileQueryOptions } from "~/lib/projectReactQuery";
+import Editor, { type OnMount } from "@monaco-editor/react";
+import { projectReadFileQueryOptions, projectWriteFileMutationOptions } from "~/lib/projectReactQuery";
 import { useFileViewerStore } from "~/fileViewerStore";
 import { isElectron } from "~/env";
 import { useTheme } from "~/hooks/useTheme";
 import { cn } from "~/lib/utils";
 import { VscodeEntryIcon } from "./chat/VscodeEntryIcon";
 
-// ── Theme ─────────────────────────────────────────────────────────────
-// Syntax token colors from One Dark Pro (dark mode) or pierre-light (light mode).
-// The panel background/borders come from the app theme — not forced dark.
-
-const FILE_VIEWER_DARK_THEME = "one-dark-pro" as const;
-const FILE_VIEWER_LIGHT_THEME = "pierre-light" as const;
-type FileViewerTheme = typeof FILE_VIEWER_DARK_THEME | typeof FILE_VIEWER_LIGHT_THEME;
-
-function resolveFileViewerTheme(resolvedAppTheme: "light" | "dark"): FileViewerTheme {
-  return resolvedAppTheme === "dark" ? FILE_VIEWER_DARK_THEME : FILE_VIEWER_LIGHT_THEME;
-}
-
 // ── Language detection ────────────────────────────────────────────────
 
-function inferLanguage(relativePath: string): string {
+function inferMonacoLanguage(relativePath: string): string {
   const dot = relativePath.lastIndexOf(".");
-  return dot !== -1 ? relativePath.slice(dot + 1).toLowerCase() : "text";
-}
-
-// ── Shiki highlighter cache ───────────────────────────────────────────
-
-const highlighterCache = new Map<string, Promise<any>>();
-
-function getFileViewerHighlighter(language: string, theme: FileViewerTheme): Promise<any> {
-  const key = `${language}:${theme}`;
-  let cached = highlighterCache.get(key);
-  if (!cached) {
-    cached = getSharedHighlighter({
-      themes: [theme],
-      langs: [language as SupportedLanguages],
-      preferredHighlighter: "shiki-js",
-    }).catch(() => {
-      highlighterCache.delete(key);
-      if (language !== "text") return getFileViewerHighlighter("text", theme);
-      throw new Error("Shiki init failed");
-    });
-    highlighterCache.set(key, cached);
+  if (dot === -1) return "plaintext";
+  const ext = relativePath.slice(dot + 1).toLowerCase();
+  switch (ext) {
+    case "ts":
+    case "tsx":
+      return "typescript";
+    case "js":
+    case "jsx":
+      return "javascript";
+    case "json":
+      return "json";
+    case "css":
+      return "css";
+    case "html":
+      return "html";
+    case "md":
+    case "mdx":
+      return "markdown";
+    case "py":
+      return "python";
+    case "rs":
+      return "rust";
+    case "go":
+      return "go";
+    case "sh":
+    case "bash":
+      return "shell";
+    case "yaml":
+    case "yml":
+      return "yaml";
+    default:
+      return "plaintext";
   }
-  return cached;
 }
 
-// ── Shiki code block ──────────────────────────────────────────────────
-
-function ShikiCode({
-  code,
-  language,
-  theme,
-}: {
-  code: string;
-  language: string;
-  theme: FileViewerTheme;
-}) {
-  const highlighter = use(getFileViewerHighlighter(language, theme));
-  const html = useMemo(() => {
-    try {
-      return highlighter.codeToHtml(code, { lang: language, theme });
-    } catch {
-      return highlighter.codeToHtml(code, { lang: "text", theme });
-    }
-  }, [highlighter, code, language, theme]);
-
-  // file-viewer-shiki class triggers the CSS that strips the forced background
-  return (
-    <div
-      className="file-viewer-shiki min-w-0 text-[13px] leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-}
-
-// ── File content loader ───────────────────────────────────────────────
+// ── File content (editor) ─────────────────────────────────────────────
 
 function FileContent({
   cwd,
   relativePath,
-  theme,
+  monacoTheme,
 }: {
   cwd: string;
   relativePath: string;
-  theme: FileViewerTheme;
+  monacoTheme: "vs-dark" | "vs";
 }) {
-  const language = inferLanguage(relativePath);
-  const { data, isLoading, isError } = useQuery(
-    projectReadFileQueryOptions({ cwd, relativePath }),
-  );
+  const queryClient = useQueryClient();
+  const language = inferMonacoLanguage(relativePath);
+  const queryOptions = projectReadFileQueryOptions({ cwd, relativePath });
+
+  const { data, isLoading, isError } = useQuery(queryOptions);
+
+  // Local editor value — null means "not yet diverged from server content"
+  const [editorValue, setEditorValue] = useState<string | null>(null);
+  const isDirty = editorValue !== null && editorValue !== data?.contents;
+
+  // Reset local state whenever the viewed file changes
+  useEffect(() => {
+    setEditorValue(null);
+  }, [relativePath]);
+
+  const saveMutation = useMutation(projectWriteFileMutationOptions());
+
+  const handleSave = () => {
+    if (!isDirty) return;
+    saveMutation.mutate(
+      { cwd, relativePath, contents: editorValue! },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
+        },
+      },
+    );
+  };
+
+  // Keep a ref to the latest handleSave so the onMount keyboard binding
+  // never captures a stale closure.
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      handleSaveRef.current();
+    });
+  };
 
   if (isLoading) {
     return (
@@ -112,16 +116,43 @@ function FileContent({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
-      <Suspense
-        fallback={
-          <pre className="p-4 font-mono text-[13px] leading-relaxed text-foreground/80">
-            {data.contents}
-          </pre>
-        }
-      >
-        <ShikiCode code={data.contents} language={language} theme={theme} />
-      </Suspense>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Dirty indicator bar + save button */}
+      {isDirty && (
+        <div className="flex shrink-0 items-center justify-end gap-2 border-b border-border bg-muted/30 px-3 py-1">
+          <span className="text-xs text-muted-foreground/70">Unsaved changes</span>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            className="inline-flex h-6 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saveMutation.isPending ? (
+              <Loader2Icon className="size-3 animate-spin" />
+            ) : (
+              "Save"
+            )}
+          </button>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1">
+        <Editor
+          language={language}
+          theme={monacoTheme}
+          value={editorValue ?? data.contents}
+          onChange={(val) => setEditorValue(val ?? "")}
+          onMount={handleEditorMount}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 13,
+            lineNumbers: "on",
+            scrollBeyondLastLine: false,
+            wordWrap: "off",
+            automaticLayout: true,
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -131,7 +162,7 @@ function FileContent({
 export function FileViewerPanel() {
   const { cwd, relativePath, close } = useFileViewerStore();
   const { resolvedTheme } = useTheme();
-  const theme = resolveFileViewerTheme(resolvedTheme);
+  const monacoTheme = resolvedTheme === "dark" ? "vs-dark" : "vs";
 
   if (!cwd || !relativePath) {
     return (
@@ -182,8 +213,8 @@ export function FileViewerPanel() {
         </button>
       </div>
 
-      {/* Code content */}
-      <FileContent cwd={cwd} relativePath={relativePath} theme={theme} />
+      {/* Monaco editor */}
+      <FileContent cwd={cwd} relativePath={relativePath} monacoTheme={monacoTheme} />
     </div>
   );
 }
