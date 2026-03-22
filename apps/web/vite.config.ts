@@ -2,9 +2,15 @@ import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
-import monacoEditorPlugin from "vite-plugin-monaco-editor";
+import _monacoEditorPluginPkg from "vite-plugin-monaco-editor";
 import { defineConfig } from "vite";
 import pkg from "./package.json" with { type: "json" };
+
+// vite-plugin-monaco-editor is CJS; in an ESM context the callable lands on .default
+const monacoEditorPlugin = (
+  (_monacoEditorPluginPkg as unknown as { default: typeof _monacoEditorPluginPkg }).default
+  ?? _monacoEditorPluginPkg
+);
 
 const port = Number(process.env.PORT ?? 5733);
 const sourcemapEnv = process.env.T3CODE_WEB_SOURCEMAP?.trim().toLowerCase();
