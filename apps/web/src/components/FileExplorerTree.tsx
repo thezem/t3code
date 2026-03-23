@@ -1,7 +1,8 @@
 import { ChevronRightIcon, FolderIcon, FolderClosedIcon, PlusIcon } from "lucide-react";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback } from "react";
 import { cn } from "~/lib/utils";
 import { VscodeEntryIcon } from "./chat/VscodeEntryIcon";
+import { useFileExplorerExpanded } from "~/hooks/useFileExplorerExpanded";
 import type { FileTreeNode } from "~/lib/buildFileTree";
 
 interface FileExplorerTreeProps {
@@ -14,32 +15,38 @@ interface FileExplorerTreeProps {
 
 export const FileExplorerTree = memo(function FileExplorerTree({
   nodes,
-  cwd: _cwd,
+  cwd,
   resolvedTheme,
   onFileClick,
   onMentionFile,
 }: FileExplorerTreeProps) {
-  const [expandedDirectories, setExpandedDirectories] = useState<Record<string, boolean>>({});
+  // Use hook for persisted expansion state
+  const { expanded: expandedDirectories, toggle } = useFileExplorerExpanded(cwd);
 
-  const toggleDirectory = useCallback((path: string, fallbackExpanded: boolean) => {
-    setExpandedDirectories((current) => ({
-      ...current,
-      [path]: !(current[path] ?? fallbackExpanded),
-    }));
-  }, []);
+  const toggleDirectory = useCallback(
+    (path: string) => {
+      toggle(path);
+    },
+    [toggle],
+  );
 
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {
     const leftPadding = 8 + depth * 14;
 
     if (node.kind === "directory") {
-      const isExpanded = expandedDirectories[node.path] ?? depth === 0;
+      const isExpanded = expandedDirectories[node.path] ?? false;
       return (
         <div key={`dir:${node.path}`}>
           <button
             type="button"
             className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
             style={{ paddingLeft: `${leftPadding}px` }}
-            onClick={() => toggleDirectory(node.path, depth === 0)}
+            onClick={() => {
+              toggleDirectory(node.path);
+              if (!isExpanded && onLazyLoadDirectory) {
+                void onLazyLoadDirectory(node.path);
+              }
+            }}
           >
             <ChevronRightIcon
               aria-hidden="true"
