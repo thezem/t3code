@@ -11,6 +11,7 @@ interface FileExplorerTreeProps {
   resolvedTheme: "light" | "dark";
   onFileClick: (path: string) => void;
   onMentionFile: (path: string) => void;
+  onLazyLoadDirectory?: (path: string) => Promise<void>;
 }
 
 export const FileExplorerTree = memo(function FileExplorerTree({
@@ -19,6 +20,7 @@ export const FileExplorerTree = memo(function FileExplorerTree({
   resolvedTheme,
   onFileClick,
   onMentionFile,
+  onLazyLoadDirectory,
 }: FileExplorerTreeProps) {
   // Use hook for persisted expansion state
   const { expanded: expandedDirectories, toggle } = useFileExplorerExpanded(cwd);

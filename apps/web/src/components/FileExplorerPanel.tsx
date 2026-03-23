@@ -71,9 +71,9 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
         {isLoading && (
           <div className="space-y-1 px-2 pt-2">
-            {Array.from({ length: 8 }).map((_, i) => (
+            {Array.from({ length: 8 }, (_, i) => `skeleton-loading-${i}`).map((key, i) => (
               <div
-                key={i}
+                key={key}
                 className="h-5 animate-pulse rounded bg-muted/60"
                 style={{ width: `${55 + (i % 5) * 8}%` }}
               />

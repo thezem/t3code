@@ -18,7 +18,6 @@ import {
 import type { MenuItemConstructorOptions } from "electron";
 import * as Effect from "effect/Effect";
 import type {
-  DesktopTheme,
   DesktopUpdateActionResult,
   DesktopUpdateState,
 } from "@t3tools/contracts";

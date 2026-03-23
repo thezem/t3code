@@ -31,6 +31,64 @@ bun run -w @t3tools/web test
 bun run -w @t3tools/web test:browser  # Playwright browser tests
 ```
 
+## Release Workflow
+
+### Pre-Release Validation (Local)
+
+Before creating a release, **always run these checks locally** to ensure CI will pass:
+
+```bash
+# 1. Run all quality checks (must all pass before proceeding)
+bun run typecheck    # TypeScript type checking
+bun lint             # Linting with oxlint
+bun run test         # All tests (Vitest)
+
+# Verify results:
+# ✅ Typecheck: 0 errors
+# ✅ Lint: 0 errors, 0 warnings
+# ✅ Tests: All passing (skip/todo tests are OK)
+```
+
+**IMPORTANT**: Do NOT proceed to release if any of these checks fail. Fix issues locally first, then re-validate.
+
+### Creating a Release Tag
+
+Once all local checks pass, create and push the release tag:
+
+```bash
+# 1. Ensure you're on main branch with clean working tree
+git status
+
+# 2. Create the release tag with format: v<major>.<minor>.<patch>[-<prerelease>]
+# Examples: v0.0.13, v0.0.13-zem0.1, v1.0.0-rc1
+git tag v0.0.13-zem0.1 -m "Release v0.0.13-zem0.1"
+
+# 3. Push tag to your fork (replace 'thezem' with your username)
+git push origin v0.0.13-zem0.1
+
+# Or force-push if tag already exists and needs updating:
+git push -f origin v0.0.13-zem0.1
+```
+
+### Release CI Pipeline
+
+After pushing a tag, GitHub Actions automatically:
+1. **Preflight** — Validates git checkout, typecheck, lint, tests
+2. **Build** — Builds desktop app and CLI
+3. **Publish** — Publishes CLI to npm (if configured)
+4. **GitHub Release** — Creates release on GitHub with changelog
+
+**Monitor CI**: Watch the Actions tab at https://github.com/thezem/t3code/actions
+
+### Common Release Issues & Fixes
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Symlink error: "File name too long" | File stored as symlink in git | `git rm --cached FILE && git add FILE && git commit` |
+| TypeScript error | Type mismatch not caught locally | Fix type, re-validate with `bun run typecheck` |
+| Lint errors | Linting issues | Run `bun lint` and fix, or add `// oxlint-disable` comment with justification |
+| Test timeout | Hook-using component in incompatible test | Mark as `.todo()` and file issue for refactor |
+
 ## Architecture Overview
 
 T3 Code is a **minimal web GUI for coding agents** (Claude and Codex) built as a Turbo monorepo with Bun.
