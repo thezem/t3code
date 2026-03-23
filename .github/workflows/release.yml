@@ -85,11 +85,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: Linux x64
-            runner: ubuntu-24.04
-            platform: linux
-            target: AppImage
-            arch: x64
+          # - label: Linux x64
+          #   runner: ubuntu-24.04
+          #   platform: linux
+          #   target: AppImage
+          #   arch: x64
           - label: Windows x64
             runner: windows-2022
             platform: win
@@ -223,8 +223,6 @@ jobs:
           prerelease: ${{ needs.preflight.outputs.is_prerelease }}
           make_latest: ${{ needs.preflight.outputs.make_latest }}
           files: |
-            release-assets/*.zip
-            release-assets/*.AppImage
             release-assets/*.exe
             release-assets/*.blockmap
             release-assets/latest*.yml
