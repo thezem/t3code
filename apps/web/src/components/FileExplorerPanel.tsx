@@ -1,7 +1,7 @@
 import { RefreshCwIcon } from "lucide-react";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { projectSearchEntriesQueryOptions, directoryEntriesQueryOptions } from "~/lib/projectReactQuery";
+import { projectSearchEntriesQueryOptions } from "~/lib/projectReactQuery";
 import { buildFileTree } from "~/lib/buildFileTree";
 import { FileExplorerTree } from "./FileExplorerTree";
 import { useTheme } from "~/hooks/useTheme";
@@ -12,21 +12,17 @@ interface FileExplorerPanelProps {
   onMentionFile: (relativePath: string) => void;
 }
 
-const FILE_EXPLORER_LIMIT = 200;
-const INITIAL_MAX_DEPTH = 3;
-const LAZY_LOAD_MAX_DEPTH = 3;
+// Fetch all files - server already filters out node_modules and ignored dirs
+const FILE_EXPLORER_LIMIT = 25000;
 
 export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplorerPanelProps) {
   const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
-  const [fetchedDirectories, setFetchedDirectories] = useState<Set<string>>(new Set());
 
   const queryOptions = projectSearchEntriesQueryOptions({
     cwd,
     query: "",
     limit: FILE_EXPLORER_LIMIT,
-    // Note: Not limiting depth on initial query to ensure all files are visible
-    // Lazy-loading handles additional entries if needed
     enabled: cwd !== null,
   });
 
@@ -37,43 +33,8 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
     return buildFileTree(data.entries);
   }, [data?.entries]);
 
-  const handleLazyLoadDirectory = useCallback(
-    async (dirPath: string) => {
-      if (!cwd || fetchedDirectories.has(dirPath)) {
-        return;
-      }
-
-      // Trigger lazy-load query
-      // Don't limit depth or use higher limit for lazy-loads to ensure we get all children
-      const lazyLoadOptions = directoryEntriesQueryOptions({
-        cwd,
-        dirPath,
-        limit: FILE_EXPLORER_LIMIT * 2,
-      });
-
-      const lazyLoadedData = await queryClient.fetchQuery(lazyLoadOptions);
-
-      // Merge lazy-loaded entries into the main cache
-      queryClient.setQueryData(queryOptions.queryKey, (oldData) => {
-        if (!oldData) return oldData;
-        // Combine entries, removing duplicates
-        const existingPaths = new Set(oldData.entries.map((e) => e.path));
-        const newEntries = lazyLoadedData.entries.filter((e) => !existingPaths.has(e.path));
-        return {
-          ...oldData,
-          entries: [...oldData.entries, ...newEntries],
-        };
-      });
-
-      // Mark as fetched
-      setFetchedDirectories((prev) => new Set([...prev, dirPath]));
-    },
-    [cwd, fetchedDirectories, queryClient, queryOptions.queryKey],
-  );
-
   const handleRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
-    setFetchedDirectories(new Set());
   };
 
   if (!cwd) {
@@ -136,7 +97,6 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
             resolvedTheme={resolvedTheme}
             onFileClick={onFileClick}
             onMentionFile={onMentionFile}
-            onLazyLoadDirectory={handleLazyLoadDirectory}
           />
         )}
       </div>
