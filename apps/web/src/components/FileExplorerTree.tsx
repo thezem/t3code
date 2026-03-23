@@ -1,7 +1,8 @@
 import { ChevronRightIcon, FolderIcon, FolderClosedIcon, PlusIcon } from "lucide-react";
-import { memo, useCallback } from "react";
+import { memo } from "react";
 import { cn } from "~/lib/utils";
 import { VscodeEntryIcon } from "./chat/VscodeEntryIcon";
+import { useFileExplorerStore } from "~/fileExplorerStore";
 import type { FileTreeNode } from "~/lib/buildFileTree";
 
 interface FileExplorerTreeProps {
@@ -10,47 +11,38 @@ interface FileExplorerTreeProps {
   resolvedTheme: "light" | "dark";
   onFileClick: (path: string) => void;
   onMentionFile: (path: string) => void;
-  onExpandDirectory?: (dirPath: string) => void;
-  expandedDirs?: Set<string>;
-  onToggleDirectory?: (dirPath: string) => void;
+  onLazyLoadDirectory?: (dirPath: string) => void;
 }
 
 export const FileExplorerTree = memo(function FileExplorerTree({
   nodes,
-  cwd: _cwd,
+  cwd,
   resolvedTheme,
   onFileClick,
   onMentionFile,
-  onExpandDirectory,
-  expandedDirs = new Set(),
-  onToggleDirectory,
+  onLazyLoadDirectory,
 }: FileExplorerTreeProps) {
-  const toggleDirectory = useCallback(
-    (path: string) => {
-      // Call onToggleDirectory first (which updates store)
-      if (onToggleDirectory) {
-        onToggleDirectory(path);
-      }
-      // Trigger lazy-load - onExpandDirectory will check if it's needed
-      if (onExpandDirectory) {
-        void onExpandDirectory(path);
-      }
-    },
-    [onExpandDirectory, onToggleDirectory],
-  );
+  // Get expanded dirs and toggle function from store
+  const expandedDirs = useFileExplorerStore((state) => state.expandedDirs[cwd] ?? []);
+  const { toggleDirectory } = useFileExplorerStore();
 
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {
     const leftPadding = 8 + depth * 14;
 
     if (node.kind === "directory") {
-      const isExpanded = expandedDirs.has(node.path);
+      const isExpanded = expandedDirs.includes(node.path);
       return (
         <div key={`dir:${node.path}`}>
           <button
             type="button"
             className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
             style={{ paddingLeft: `${leftPadding}px` }}
-            onClick={() => toggleDirectory(node.path)}
+            onClick={() => {
+              toggleDirectory(cwd, node.path);
+              if (!isExpanded && onLazyLoadDirectory) {
+                void onLazyLoadDirectory(node.path);
+              }
+            }}
           >
             <ChevronRightIcon
               aria-hidden="true"

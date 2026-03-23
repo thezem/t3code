@@ -5,7 +5,6 @@ import { projectSearchEntriesQueryOptions, directoryEntriesQueryOptions } from "
 import { buildFileTree } from "~/lib/buildFileTree";
 import { FileExplorerTree } from "./FileExplorerTree";
 import { useTheme } from "~/hooks/useTheme";
-import { useFileExplorerStore } from "~/fileExplorerStore";
 
 interface FileExplorerPanelProps {
   cwd: string | null;
@@ -22,9 +21,6 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
   const queryClient = useQueryClient();
   const [fetchedDirectories, setFetchedDirectories] = useState<Set<string>>(new Set());
 
-  const expandedDirs = useFileExplorerStore((state) => state.expandedDirs[cwd ?? ""] ?? []);
-  const { toggleDirectory } = useFileExplorerStore();
-
   const queryOptions = projectSearchEntriesQueryOptions({
     cwd,
     query: "",
@@ -40,9 +36,7 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
     return buildFileTree(data.entries);
   }, [data?.entries]);
 
-  const expandedDirsSet = useMemo(() => new Set(expandedDirs), [expandedDirs]);
-
-  const handleExpandDirectory = useCallback(
+  const handleLazyLoadDirectory = useCallback(
     async (dirPath: string) => {
       if (!cwd || fetchedDirectories.has(dirPath)) {
         return;
@@ -62,15 +56,6 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
       setFetchedDirectories((prev) => new Set([...prev, dirPath]));
     },
     [cwd, fetchedDirectories, queryClient],
-  );
-
-  const handleToggleDirectory = useCallback(
-    (dirPath: string) => {
-      if (cwd) {
-        toggleDirectory(cwd, dirPath);
-      }
-    },
-    [cwd, toggleDirectory],
   );
 
   const handleRefresh = () => {
@@ -138,9 +123,7 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
             resolvedTheme={resolvedTheme}
             onFileClick={onFileClick}
             onMentionFile={onMentionFile}
-            onExpandDirectory={handleExpandDirectory}
-            expandedDirs={expandedDirsSet}
-            onToggleDirectory={handleToggleDirectory}
+            onLazyLoadDirectory={handleLazyLoadDirectory}
           />
         )}
       </div>
