@@ -1,0 +1,36 @@
+[package]
+name = "t3-code"
+version = "0.0.13"
+description = "t3 code - Minimal web GUI for coding agents"
+authors = ["ping"]
+edition = "2021"
+rust-version = "1.60"
+license = ""
+repository = ""
+default-run = "t3-code"
+
+[lib]
+name = "t3_code_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "t3-code"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.0", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

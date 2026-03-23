@@ -1,0 +1,32 @@
+{
+  "productName": "t3 code",
+  "version": "0.0.13",
+  "identifier": "com.pingdot.t3code",
+  "build": {
+    "beforeBuildCommand": "turbo run build --filter=@t3tools/web --filter=t3",
+    "beforeDevCommand": "turbo run dev --filter=@t3tools/web",
+    "devUrl": "http://localhost:5733",
+    "frontendDist": "../../apps/web/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 900,
+        "resizable": true,
+        "title": "t3 code",
+        "width": 1400
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "msi"
+    ]
+  }
+}

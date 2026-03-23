@@ -1,0 +1,20 @@
+{
+  "name": "@t3tools/tauri-desktop",
+  "version": "0.0.13",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
