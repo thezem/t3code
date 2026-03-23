@@ -25,7 +25,8 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
     cwd,
     query: "",
     limit: FILE_EXPLORER_LIMIT,
-    maxDepth: INITIAL_MAX_DEPTH,
+    // Note: Not limiting depth on initial query to ensure all files are visible
+    // Lazy-loading handles additional entries if needed
     enabled: cwd !== null,
   });
 
@@ -50,12 +51,24 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
         limit: FILE_EXPLORER_LIMIT,
       });
 
-      await queryClient.fetchQuery(lazyLoadOptions);
+      const lazyLoadedData = await queryClient.fetchQuery(lazyLoadOptions);
+
+      // Merge lazy-loaded entries into the main cache
+      queryClient.setQueryData(queryOptions.queryKey, (oldData) => {
+        if (!oldData) return oldData;
+        // Combine entries, removing duplicates
+        const existingPaths = new Set(oldData.entries.map((e) => e.path));
+        const newEntries = lazyLoadedData.entries.filter((e) => !existingPaths.has(e.path));
+        return {
+          ...oldData,
+          entries: [...oldData.entries, ...newEntries],
+        };
+      });
 
       // Mark as fetched
       setFetchedDirectories((prev) => new Set([...prev, dirPath]));
     },
-    [cwd, fetchedDirectories, queryClient],
+    [cwd, fetchedDirectories, queryClient, queryOptions.queryKey],
   );
 
   const handleRefresh = () => {
