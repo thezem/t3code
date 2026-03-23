@@ -44,12 +44,10 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
       }
 
       // Trigger lazy-load query
-      // Use higher limit for lazy-loads to ensure we get all children
+      // Don't limit depth or use higher limit for lazy-loads to ensure we get all children
       const lazyLoadOptions = directoryEntriesQueryOptions({
         cwd,
         dirPath,
-        // Don't limit depth for lazy-loads - we want all children of this directory
-        maxDepth: undefined,
         limit: FILE_EXPLORER_LIMIT * 2,
       });
 

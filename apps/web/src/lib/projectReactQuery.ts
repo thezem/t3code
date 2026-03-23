@@ -85,9 +85,9 @@ export function directoryEntriesQueryOptions(input: {
   staleTime?: number;
 }) {
   const limit = input.limit ?? DEFAULT_SEARCH_ENTRIES_LIMIT;
-  const maxDepth = input.maxDepth ?? 3;
+  // Don't default maxDepth - let server handle undefined (no depth limiting)
   return queryOptions({
-    queryKey: projectQueryKeys.directoryEntries(input.cwd, input.dirPath, maxDepth),
+    queryKey: projectQueryKeys.directoryEntries(input.cwd, input.dirPath, input.maxDepth),
     queryFn: async () => {
       const api = ensureNativeApi();
       if (!input.cwd) {
@@ -97,7 +97,7 @@ export function directoryEntriesQueryOptions(input: {
         cwd: input.cwd,
         query: input.dirPath,
         limit,
-        maxDepth,
+        maxDepth: input.maxDepth,
       });
     },
     enabled: (input.enabled ?? true) && input.cwd !== null,
