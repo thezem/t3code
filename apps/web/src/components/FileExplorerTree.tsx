@@ -1,8 +1,7 @@
 import { ChevronRightIcon, FolderIcon, FolderClosedIcon, PlusIcon } from "lucide-react";
-import { memo } from "react";
+import { memo, useState, useCallback } from "react";
 import { cn } from "~/lib/utils";
 import { VscodeEntryIcon } from "./chat/VscodeEntryIcon";
-import { useFileExplorerStore } from "~/fileExplorerStore";
 import type { FileTreeNode } from "~/lib/buildFileTree";
 
 interface FileExplorerTreeProps {
@@ -16,21 +15,27 @@ interface FileExplorerTreeProps {
 
 export const FileExplorerTree = memo(function FileExplorerTree({
   nodes,
-  cwd,
+  cwd: _cwd,
   resolvedTheme,
   onFileClick,
   onMentionFile,
   onLazyLoadDirectory,
 }: FileExplorerTreeProps) {
-  // Get expanded dirs and toggle function from store
-  const expandedDirs = useFileExplorerStore((state) => state.expandedDirs[cwd] ?? []);
-  const { toggleDirectory } = useFileExplorerStore();
+  // Use local component state for now (temporary - will move to store later)
+  const [expandedDirectories, setExpandedDirectories] = useState<Record<string, boolean>>({});
+
+  const toggleDirectory = useCallback((path: string) => {
+    setExpandedDirectories((current) => ({
+      ...current,
+      [path]: !(current[path] ?? false),
+    }));
+  }, []);
 
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {
     const leftPadding = 8 + depth * 14;
 
     if (node.kind === "directory") {
-      const isExpanded = expandedDirs.includes(node.path);
+      const isExpanded = expandedDirectories[node.path] ?? false;
       return (
         <div key={`dir:${node.path}`}>
           <button
@@ -38,7 +43,7 @@ export const FileExplorerTree = memo(function FileExplorerTree({
             className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
             style={{ paddingLeft: `${leftPadding}px` }}
             onClick={() => {
-              toggleDirectory(cwd, node.path);
+              toggleDirectory(node.path);
               if (!isExpanded && onLazyLoadDirectory) {
                 void onLazyLoadDirectory(node.path);
               }
