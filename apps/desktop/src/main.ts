@@ -152,7 +152,7 @@ function getSafeExternalUrl(rawUrl: unknown): string | null {
   return parsedUrl.toString();
 }
 
-function getSafeTheme(rawTheme: unknown): DesktopTheme | null {
+function getSafeTheme(rawTheme: unknown): "light" | "dark" | "system" | null {
   if (rawTheme === "light" || rawTheme === "dark" || rawTheme === "system") {
     return rawTheme;
   }
