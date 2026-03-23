@@ -1,7 +1,8 @@
 import { ChevronRightIcon, FolderIcon, FolderClosedIcon, PlusIcon } from "lucide-react";
-import { memo, useState, useCallback } from "react";
+import { memo, useCallback } from "react";
 import { cn } from "~/lib/utils";
 import { VscodeEntryIcon } from "./chat/VscodeEntryIcon";
+import { useFileExplorerExpanded } from "~/hooks/useFileExplorerExpanded";
 import type { FileTreeNode } from "~/lib/buildFileTree";
 
 interface FileExplorerTreeProps {
@@ -15,21 +16,25 @@ interface FileExplorerTreeProps {
 
 export const FileExplorerTree = memo(function FileExplorerTree({
   nodes,
-  cwd: _cwd,
+  cwd,
   resolvedTheme,
   onFileClick,
   onMentionFile,
   onLazyLoadDirectory,
 }: FileExplorerTreeProps) {
-  // Use local component state for now (temporary - will move to store later)
-  const [expandedDirectories, setExpandedDirectories] = useState<Record<string, boolean>>({});
+  // Use hook for persisted expansion state
+  const { expanded: expandedDirectories, toggle } = useFileExplorerExpanded(cwd);
 
-  const toggleDirectory = useCallback((path: string) => {
-    setExpandedDirectories((current) => ({
-      ...current,
-      [path]: !(current[path] ?? false),
-    }));
-  }, []);
+  const toggleDirectory = useCallback(
+    (path: string) => {
+      toggle(path);
+      // Trigger lazy-load if needed
+      if (!expandedDirectories[path] && onLazyLoadDirectory) {
+        void onLazyLoadDirectory(path);
+      }
+    },
+    [expandedDirectories, toggle, onLazyLoadDirectory],
+  );
 
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {
     const leftPadding = 8 + depth * 14;
