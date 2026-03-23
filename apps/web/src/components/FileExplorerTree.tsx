@@ -1,5 +1,5 @@
 import { ChevronRightIcon, FolderIcon, FolderClosedIcon, PlusIcon } from "lucide-react";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback } from "react";
 import { cn } from "~/lib/utils";
 import { VscodeEntryIcon } from "./chat/VscodeEntryIcon";
 import type { FileTreeNode } from "~/lib/buildFileTree";
@@ -10,6 +10,9 @@ interface FileExplorerTreeProps {
   resolvedTheme: "light" | "dark";
   onFileClick: (path: string) => void;
   onMentionFile: (path: string) => void;
+  onExpandDirectory?: (dirPath: string) => void;
+  expandedDirs?: Set<string>;
+  onToggleDirectory?: (dirPath: string) => void;
 }
 
 export const FileExplorerTree = memo(function FileExplorerTree({
@@ -18,28 +21,35 @@ export const FileExplorerTree = memo(function FileExplorerTree({
   resolvedTheme,
   onFileClick,
   onMentionFile,
+  onExpandDirectory,
+  expandedDirs = new Set(),
+  onToggleDirectory,
 }: FileExplorerTreeProps) {
-  const [expandedDirectories, setExpandedDirectories] = useState<Record<string, boolean>>({});
-
-  const toggleDirectory = useCallback((path: string, fallbackExpanded: boolean) => {
-    setExpandedDirectories((current) => ({
-      ...current,
-      [path]: !(current[path] ?? fallbackExpanded),
-    }));
-  }, []);
+  const toggleDirectory = useCallback(
+    (path: string) => {
+      const isCurrentlyExpanded = expandedDirs.has(path);
+      if (!isCurrentlyExpanded && onExpandDirectory) {
+        void onExpandDirectory(path);
+      }
+      if (onToggleDirectory) {
+        onToggleDirectory(path);
+      }
+    },
+    [expandedDirs, onExpandDirectory, onToggleDirectory],
+  );
 
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {
     const leftPadding = 8 + depth * 14;
 
     if (node.kind === "directory") {
-      const isExpanded = expandedDirectories[node.path] ?? depth === 0;
+      const isExpanded = expandedDirs.has(node.path);
       return (
         <div key={`dir:${node.path}`}>
           <button
             type="button"
             className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
             style={{ paddingLeft: `${leftPadding}px` }}
-            onClick={() => toggleDirectory(node.path, depth === 0)}
+            onClick={() => toggleDirectory(node.path)}
           >
             <ChevronRightIcon
               aria-hidden="true"

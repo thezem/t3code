@@ -36,6 +36,8 @@ export const projectQueryKeys = {
   all: ["projects"] as const,
   searchEntries: (cwd: string | null, query: string, limit: number) =>
     ["projects", "search-entries", cwd, query, limit] as const,
+  directoryEntries: (cwd: string | null, dirPath: string, maxDepth?: number) =>
+    ["projects", "directory-entries", cwd, dirPath, maxDepth] as const,
 };
 
 const DEFAULT_SEARCH_ENTRIES_LIMIT = 80;
@@ -51,6 +53,7 @@ export function projectSearchEntriesQueryOptions(input: {
   enabled?: boolean;
   limit?: number;
   staleTime?: number;
+  maxDepth?: number;
 }) {
   const limit = input.limit ?? DEFAULT_SEARCH_ENTRIES_LIMIT;
   return queryOptions({
@@ -64,6 +67,37 @@ export function projectSearchEntriesQueryOptions(input: {
         cwd: input.cwd,
         query: input.query,
         limit,
+        maxDepth: input.maxDepth,
+      });
+    },
+    enabled: (input.enabled ?? true) && input.cwd !== null,
+    staleTime: input.staleTime ?? DEFAULT_SEARCH_ENTRIES_STALE_TIME,
+    placeholderData: (previous) => previous ?? EMPTY_SEARCH_ENTRIES_RESULT,
+  });
+}
+
+export function directoryEntriesQueryOptions(input: {
+  cwd: string | null;
+  dirPath: string;
+  maxDepth?: number;
+  enabled?: boolean;
+  limit?: number;
+  staleTime?: number;
+}) {
+  const limit = input.limit ?? DEFAULT_SEARCH_ENTRIES_LIMIT;
+  const maxDepth = input.maxDepth ?? 3;
+  return queryOptions({
+    queryKey: projectQueryKeys.directoryEntries(input.cwd, input.dirPath, maxDepth),
+    queryFn: async () => {
+      const api = ensureNativeApi();
+      if (!input.cwd) {
+        throw new Error("Directory entry fetch is unavailable.");
+      }
+      return api.projects.searchEntries({
+        cwd: input.cwd,
+        query: input.dirPath,
+        limit,
+        maxDepth,
       });
     },
     enabled: (input.enabled ?? true) && input.cwd !== null,

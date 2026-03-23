@@ -1,10 +1,11 @@
 import { RefreshCwIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { projectSearchEntriesQueryOptions } from "~/lib/projectReactQuery";
+import { projectSearchEntriesQueryOptions, directoryEntriesQueryOptions } from "~/lib/projectReactQuery";
 import { buildFileTree } from "~/lib/buildFileTree";
 import { FileExplorerTree } from "./FileExplorerTree";
 import { useTheme } from "~/hooks/useTheme";
+import { useFileExplorerStore } from "~/fileExplorerStore";
 
 interface FileExplorerPanelProps {
   cwd: string | null;
@@ -13,15 +14,22 @@ interface FileExplorerPanelProps {
 }
 
 const FILE_EXPLORER_LIMIT = 200;
+const INITIAL_MAX_DEPTH = 3;
+const LAZY_LOAD_MAX_DEPTH = 3;
 
 export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplorerPanelProps) {
   const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
+  const [fetchedDirectories, setFetchedDirectories] = useState<Set<string>>(new Set());
+
+  const expandedDirs = useFileExplorerStore((state) => state.expandedDirs[cwd ?? ""] ?? []);
+  const toggleDirectory = useFileExplorerStore((state) => state.toggleDirectory);
 
   const queryOptions = projectSearchEntriesQueryOptions({
     cwd,
     query: "",
     limit: FILE_EXPLORER_LIMIT,
+    maxDepth: INITIAL_MAX_DEPTH,
     enabled: cwd !== null,
   });
 
@@ -32,8 +40,40 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
     return buildFileTree(data.entries);
   }, [data?.entries]);
 
+  const handleExpandDirectory = useCallback(
+    async (dirPath: string) => {
+      if (!cwd || fetchedDirectories.has(dirPath)) {
+        return;
+      }
+
+      // Trigger lazy-load query
+      const lazyLoadOptions = directoryEntriesQueryOptions({
+        cwd,
+        dirPath,
+        maxDepth: LAZY_LOAD_MAX_DEPTH,
+        limit: FILE_EXPLORER_LIMIT,
+      });
+
+      await queryClient.fetchQuery(lazyLoadOptions);
+
+      // Mark as fetched
+      setFetchedDirectories((prev) => new Set([...prev, dirPath]));
+    },
+    [cwd, fetchedDirectories, queryClient],
+  );
+
+  const handleToggleDirectory = useCallback(
+    (dirPath: string) => {
+      if (cwd) {
+        toggleDirectory(cwd, dirPath);
+      }
+    },
+    [cwd, toggleDirectory],
+  );
+
   const handleRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
+    setFetchedDirectories(new Set());
   };
 
   if (!cwd) {
@@ -96,6 +136,9 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
             resolvedTheme={resolvedTheme}
             onFileClick={onFileClick}
             onMentionFile={onMentionFile}
+            onExpandDirectory={handleExpandDirectory}
+            expandedDirs={new Set(expandedDirs)}
+            onToggleDirectory={handleToggleDirectory}
           />
         )}
       </div>

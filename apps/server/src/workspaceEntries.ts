@@ -65,6 +65,11 @@ function basenameOf(input: string): string {
   return input.slice(separatorIndex + 1);
 }
 
+function depthOf(relativePath: string): number {
+  if (!relativePath || relativePath === "") return 0;
+  return relativePath.split("/").length;
+}
+
 function toSearchableWorkspaceEntry(entry: ProjectEntry): SearchableWorkspaceEntry {
   const normalizedPath = entry.path.toLowerCase();
   return {
@@ -335,7 +340,7 @@ async function filterGitIgnoredPaths(cwd: string, relativePaths: string[]): Prom
   return relativePaths.filter((relativePath) => !ignoredPaths.has(relativePath));
 }
 
-async function buildWorkspaceIndexFromGit(cwd: string): Promise<WorkspaceIndex | null> {
+async function buildWorkspaceIndexFromGit(cwd: string, maxDepth?: number): Promise<WorkspaceIndex | null> {
   if (!(await isInsideGitWorkTree(cwd))) {
     return null;
   }
@@ -381,6 +386,7 @@ async function buildWorkspaceIndexFromGit(cwd: string): Promise<WorkspaceIndex |
         parentPath: parentPathOf(directoryPath),
       }),
     )
+    .filter((entry) => !maxDepth || depthOf(entry.path) <= maxDepth)
     .map(toSearchableWorkspaceEntry);
   const fileEntries = [...new Set(filePaths)]
     .toSorted((left, right) => left.localeCompare(right))
@@ -391,6 +397,7 @@ async function buildWorkspaceIndexFromGit(cwd: string): Promise<WorkspaceIndex |
         parentPath: parentPathOf(filePath),
       }),
     )
+    .filter((entry) => !maxDepth || depthOf(entry.path) <= maxDepth)
     .map(toSearchableWorkspaceEntry);
 
   const entries = [...directoryEntries, ...fileEntries];
@@ -401,8 +408,8 @@ async function buildWorkspaceIndexFromGit(cwd: string): Promise<WorkspaceIndex |
   };
 }
 
-async function buildWorkspaceIndex(cwd: string): Promise<WorkspaceIndex> {
-  const gitIndexed = await buildWorkspaceIndexFromGit(cwd);
+async function buildWorkspaceIndex(cwd: string, maxDepth?: number): Promise<WorkspaceIndex> {
+  const gitIndexed = await buildWorkspaceIndexFromGit(cwd, maxDepth);
   if (gitIndexed) {
     return gitIndexed;
   }
@@ -484,7 +491,11 @@ async function buildWorkspaceIndex(cwd: string): Promise<WorkspaceIndex> {
         entries.push(entry);
 
         if (candidate.dirent.isDirectory()) {
-          pendingDirectories.push(candidate.relativePath);
+          // Only queue directory for recursion if we haven't hit maxDepth
+          const nextDepth = depthOf(candidate.relativePath) + 1;
+          if (!maxDepth || nextDepth <= maxDepth) {
+            pendingDirectories.push(candidate.relativePath);
+          }
         }
 
         if (entries.length >= WORKSPACE_INDEX_MAX_ENTRIES) {
@@ -506,7 +517,12 @@ async function buildWorkspaceIndex(cwd: string): Promise<WorkspaceIndex> {
   };
 }
 
-async function getWorkspaceIndex(cwd: string): Promise<WorkspaceIndex> {
+async function getWorkspaceIndex(cwd: string, maxDepth?: number): Promise<WorkspaceIndex> {
+  // Don't use cache for depth-limited queries since they're for specific directory fetches
+  if (maxDepth) {
+    return buildWorkspaceIndex(cwd, maxDepth);
+  }
+
   const cached = workspaceIndexCache.get(cwd);
   if (cached && Date.now() - cached.scannedAt < WORKSPACE_CACHE_TTL_MS) {
     return cached;
@@ -517,7 +533,7 @@ async function getWorkspaceIndex(cwd: string): Promise<WorkspaceIndex> {
     return inFlight;
   }
 
-  const nextPromise = buildWorkspaceIndex(cwd)
+  const nextPromise = buildWorkspaceIndex(cwd, maxDepth)
     .then((next) => {
       workspaceIndexCache.set(cwd, next);
       while (workspaceIndexCache.size > WORKSPACE_CACHE_MAX_KEYS) {
@@ -542,7 +558,7 @@ export function clearWorkspaceIndexCache(cwd: string): void {
 export async function searchWorkspaceEntries(
   input: ProjectSearchEntriesInput,
 ): Promise<ProjectSearchEntriesResult> {
-  const index = await getWorkspaceIndex(input.cwd);
+  const index = await getWorkspaceIndex(input.cwd, input.maxDepth);
   const normalizedQuery = normalizeQuery(input.query);
   const limit = Math.max(0, Math.floor(input.limit));
   const rankedEntries: RankedWorkspaceEntry[] = [];
