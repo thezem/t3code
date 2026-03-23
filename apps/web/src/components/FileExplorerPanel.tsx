@@ -13,7 +13,8 @@ interface FileExplorerPanelProps {
 }
 
 // Fetch all files - server already filters out node_modules and ignored dirs
-const FILE_EXPLORER_LIMIT = 5000;
+// Using 200 as a reasonable starting point that worked before
+const FILE_EXPLORER_LIMIT = 200;
 
 export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplorerPanelProps) {
   const { resolvedTheme } = useTheme();
