@@ -27,15 +27,16 @@ export const FileExplorerTree = memo(function FileExplorerTree({
 }: FileExplorerTreeProps) {
   const toggleDirectory = useCallback(
     (path: string) => {
-      const isCurrentlyExpanded = expandedDirs.has(path);
-      if (!isCurrentlyExpanded && onExpandDirectory) {
-        void onExpandDirectory(path);
-      }
+      // Call onToggleDirectory first (which updates store)
       if (onToggleDirectory) {
         onToggleDirectory(path);
       }
+      // Trigger lazy-load - onExpandDirectory will check if it's needed
+      if (onExpandDirectory) {
+        void onExpandDirectory(path);
+      }
     },
-    [expandedDirs, onExpandDirectory, onToggleDirectory],
+    [onExpandDirectory, onToggleDirectory],
   );
 
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {

@@ -23,7 +23,7 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
   const [fetchedDirectories, setFetchedDirectories] = useState<Set<string>>(new Set());
 
   const expandedDirs = useFileExplorerStore((state) => state.expandedDirs[cwd ?? ""] ?? []);
-  const toggleDirectory = useFileExplorerStore((state) => state.toggleDirectory);
+  const { toggleDirectory } = useFileExplorerStore();
 
   const queryOptions = projectSearchEntriesQueryOptions({
     cwd,
@@ -39,6 +39,8 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
     if (!data?.entries) return [];
     return buildFileTree(data.entries);
   }, [data?.entries]);
+
+  const expandedDirsSet = useMemo(() => new Set(expandedDirs), [expandedDirs]);
 
   const handleExpandDirectory = useCallback(
     async (dirPath: string) => {
@@ -137,7 +139,7 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
             onFileClick={onFileClick}
             onMentionFile={onMentionFile}
             onExpandDirectory={handleExpandDirectory}
-            expandedDirs={new Set(expandedDirs)}
+            expandedDirs={expandedDirsSet}
             onToggleDirectory={handleToggleDirectory}
           />
         )}
