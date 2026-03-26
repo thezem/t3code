@@ -24,6 +24,7 @@ import {
 
 import { CheckpointStoreLive } from "../src/checkpointing/Layers/CheckpointStore.ts";
 import { CheckpointStore } from "../src/checkpointing/Services/CheckpointStore.ts";
+import { GitCoreLive } from "../src/git/Layers/GitCore.ts";
 import { GitCore, type GitCoreShape } from "../src/git/Services/GitCore.ts";
 import { TextGeneration, type TextGenerationShape } from "../src/git/Services/TextGeneration.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../src/persistence/Layers/OrchestrationCommandReceipts.ts";
@@ -37,6 +38,7 @@ import { ProjectionPendingApprovalRepository } from "../src/persistence/Services
 import { ProviderUnsupportedError } from "../src/provider/Errors.ts";
 import { ProviderAdapterRegistry } from "../src/provider/Services/ProviderAdapterRegistry.ts";
 import { ProviderSessionDirectoryLive } from "../src/provider/Layers/ProviderSessionDirectory.ts";
+import { ServerSettingsService } from "../src/serverSettings.ts";
 import { makeProviderServiceLive } from "../src/provider/Layers/ProviderService.ts";
 import { makeCodexAdapterLive } from "../src/provider/Layers/CodexAdapter.ts";
 import { CodexAdapter } from "../src/provider/Services/CodexAdapter.ts";
@@ -284,17 +286,20 @@ export const makeOrchestrationIntegrationHarness = (
           Layer.provide(AnalyticsService.layerTest),
         );
 
+    const checkpointStoreLayer = CheckpointStoreLive.pipe(Layer.provide(GitCoreLive));
     const runtimeServicesLayer = Layer.mergeAll(
       orchestrationLayer,
       OrchestrationProjectionSnapshotQueryLive,
       ProjectionCheckpointRepositoryLive,
       ProjectionPendingApprovalRepositoryLive,
-      CheckpointStoreLive,
+      checkpointStoreLayer,
       providerLayer,
       RuntimeReceiptBusLive,
     );
+    const serverSettingsLayer = ServerSettingsService.layerTest();
     const runtimeIngestionLayer = ProviderRuntimeIngestionLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
+      Layer.provideMerge(serverSettingsLayer),
     );
     const gitCoreLayer = Layer.succeed(GitCore, {
       renameBranch: (input: Parameters<GitCoreShape["renameBranch"]>[0]) =>
@@ -307,6 +312,7 @@ export const makeOrchestrationIntegrationHarness = (
       Layer.provideMerge(runtimeServicesLayer),
       Layer.provideMerge(gitCoreLayer),
       Layer.provideMerge(textGenerationLayer),
+      Layer.provideMerge(serverSettingsLayer),
     );
     const checkpointReactorLayer = CheckpointReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
@@ -318,6 +324,7 @@ export const makeOrchestrationIntegrationHarness = (
     );
     const layer = orchestrationReactorLayer.pipe(
       Layer.provide(persistenceLayer),
+      Layer.provideMerge(ServerSettingsService.layerTest()),
       Layer.provideMerge(ServerConfig.layerTest(workspaceDir, rootDir)),
       Layer.provideMerge(NodeServices.layer),
     );
