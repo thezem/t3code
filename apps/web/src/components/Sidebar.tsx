@@ -2,8 +2,10 @@ import {
   ArrowLeftIcon,
   ArrowUpDownIcon,
   ChevronRightIcon,
+  FilesIcon,
   FolderIcon,
   GitPullRequestIcon,
+  MessagesSquareIcon,
   PlusIcon,
   RocketIcon,
   SettingsIcon,
@@ -73,7 +75,6 @@ import { Menu, MenuGroup, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger 
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import {
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarHeader,
   SidebarMenuAction,
@@ -83,7 +84,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarSeparator,
   SidebarTrigger,
 } from "./ui/sidebar";
 import { useThreadSelectionStore } from "../threadSelectionStore";
@@ -1699,43 +1699,101 @@ export default function Sidebar() {
         </SidebarHeader>
       )}
 
-      {/* Tab bar */}
-      <div className="flex shrink-0 border-b border-border/60 px-2 pt-1.5">
-        <button
-          type="button"
-          className={cn(
-            "px-3 py-1.5 text-xs font-medium transition-colors rounded-t-md",
-            sidebarTab === "threads"
-              ? "text-foreground border-b-2 border-foreground/80"
-              : "text-muted-foreground/60 hover:text-foreground/70",
-          )}
-          onClick={() => setSidebarTab("threads")}
-        >
-          Threads
-        </button>
-        <button
-          type="button"
-          className={cn(
-            "px-3 py-1.5 text-xs font-medium transition-colors rounded-t-md",
-            sidebarTab === "files"
-              ? "text-foreground border-b-2 border-foreground/80"
-              : "text-muted-foreground/60 hover:text-foreground/70",
-          )}
-          onClick={() => setSidebarTab("files")}
-        >
-          Files
-        </button>
-      </div>
+      {/* Activity bar + content panel */}
+      <div className="flex min-h-0 flex-1">
 
-      {sidebarTab === "files" ? (
-        <SidebarContent className="gap-0">
-          <FileExplorerPanel
-            cwd={activeProjectCwd}
-            onFileClick={handleFileClick}
-            onMentionFile={handleMentionFile}
-          />
-        </SidebarContent>
-      ) : (
+        {/* Activity Bar */}
+        <div className="flex w-11 shrink-0 flex-col items-center border-r border-border/60 py-1">
+
+          {/* Nav items */}
+          <div className="flex flex-col items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="Threads"
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-md transition-colors",
+                      sidebarTab === "threads"
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => setSidebarTab("threads")}
+                  >
+                    <MessagesSquareIcon className="size-4" />
+                  </button>
+                }
+              />
+              <TooltipPopup side="right">Threads</TooltipPopup>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="Files"
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-md transition-colors",
+                      sidebarTab === "files"
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => setSidebarTab("files")}
+                  >
+                    <FilesIcon className="size-4" />
+                  </button>
+                }
+              />
+              <TooltipPopup side="right">Files</TooltipPopup>
+            </Tooltip>
+          </div>
+
+          {/* Push settings to bottom */}
+          <div className="flex-1" />
+
+          {/* Settings / Back */}
+          <div className="pb-1">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={isOnSettings ? "Back" : "Settings"}
+                    className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                    onClick={
+                      isOnSettings
+                        ? () => window.history.back()
+                        : () => void navigate({ to: "/settings" })
+                    }
+                  >
+                    {isOnSettings ? (
+                      <ArrowLeftIcon className="size-4" />
+                    ) : (
+                      <SettingsIcon className="size-4" />
+                    )}
+                  </button>
+                }
+              />
+              <TooltipPopup side="right">
+                {isOnSettings ? "Back" : "Settings"}
+              </TooltipPopup>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* Content panel */}
+        <div className="min-w-0 flex-1 overflow-hidden flex flex-col">
+        {sidebarTab === "files" ? (
+          <SidebarContent className="gap-0">
+            <FileExplorerPanel
+              cwd={activeProjectCwd}
+              onFileClick={handleFileClick}
+              onMentionFile={handleMentionFile}
+            />
+          </SidebarContent>
+        ) : (
       <SidebarContent className="gap-0">
         {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
           <SidebarGroup className="px-2 pt-2 pb-0">
@@ -1905,34 +1963,9 @@ export default function Sidebar() {
           )}
         </SidebarGroup>
       </SidebarContent>
-      )}
-
-      <SidebarSeparator />
-      <SidebarFooter className="p-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            {isOnSettings ? (
-              <SidebarMenuButton
-                size="sm"
-                className="gap-2 px-2 py-1.5 text-muted-foreground/70 hover:bg-accent hover:text-foreground"
-                onClick={() => window.history.back()}
-              >
-                <ArrowLeftIcon className="size-3.5" />
-                <span className="text-xs">Back</span>
-              </SidebarMenuButton>
-            ) : (
-              <SidebarMenuButton
-                size="sm"
-                className="gap-2 px-2 py-1.5 text-muted-foreground/70 hover:bg-accent hover:text-foreground"
-                onClick={() => void navigate({ to: "/settings" })}
-              >
-                <SettingsIcon className="size-3.5" />
-                <span className="text-xs">Settings</span>
-              </SidebarMenuButton>
-            )}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+        )}
+        </div>
+      </div>
     </>
   );
 }
