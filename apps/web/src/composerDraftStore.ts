@@ -2,7 +2,7 @@ import {
   CODEX_REASONING_EFFORT_OPTIONS,
   type ClaudeCodeEffort,
   type CodexReasoningEffort,
-  type ModelSlug,
+  DEFAULT_MODEL_BY_PROVIDER,
   ModelSelection,
   ProjectId,
   ProviderInteractionMode,
@@ -15,7 +15,7 @@ import {
 import * as Schema from "effect/Schema";
 import * as Equal from "effect/Equal";
 import { DeepMutable } from "effect/Types";
-import { getDefaultModel, normalizeModelSlug } from "@t3tools/shared/model";
+import { normalizeModelSlug } from "@t3tools/shared/model";
 import { useMemo } from "react";
 import { getLocalStorageItem } from "./hooks/useLocalStorage";
 import { resolveAppModelSelection } from "./modelSelection";
@@ -264,7 +264,7 @@ interface ComposerDraftStoreState {
 }
 
 export interface EffectiveComposerModelState {
-  selectedModel: ModelSlug;
+  selectedModel: string;
   modelOptions: ProviderModelOptions | null;
 }
 
@@ -476,12 +476,20 @@ function normalizeProviderModelOptions(
       : claudeCandidate?.fastMode === false
         ? false
         : undefined;
+  const claudeContextWindow =
+    typeof claudeCandidate?.contextWindow === "string" && claudeCandidate.contextWindow.length > 0
+      ? claudeCandidate.contextWindow
+      : undefined;
   const claude =
-    claudeThinking !== undefined || claudeEffort !== undefined || claudeFastMode !== undefined
+    claudeThinking !== undefined ||
+    claudeEffort !== undefined ||
+    claudeFastMode !== undefined ||
+    claudeContextWindow !== undefined
       ? {
           ...(claudeThinking !== undefined ? { thinking: claudeThinking } : {}),
           ...(claudeEffort !== undefined ? { effort: claudeEffort } : {}),
           ...(claudeFastMode !== undefined ? { fastMode: claudeFastMode } : {}),
+          ...(claudeContextWindow !== undefined ? { contextWindow: claudeContextWindow } : {}),
         }
       : undefined;
 
@@ -595,7 +603,7 @@ function legacyToModelSelectionByProvider(
           model:
             modelSelection?.provider === provider
               ? modelSelection.model
-              : getDefaultModel(provider),
+              : DEFAULT_MODEL_BY_PROVIDER[provider],
           options,
         };
       }
@@ -1689,7 +1697,7 @@ export const useComposerDraftStore = create<ComposerDraftStoreState>()(
             if (opts) {
               nextMap[provider] = {
                 provider,
-                model: current?.model ?? getDefaultModel(provider),
+                model: current?.model ?? DEFAULT_MODEL_BY_PROVIDER[provider],
                 options: opts,
               };
             } else if (current?.options) {
@@ -1739,7 +1747,7 @@ export const useComposerDraftStore = create<ComposerDraftStoreState>()(
           if (providerOpts) {
             nextMap[normalizedProvider] = {
               provider: normalizedProvider,
-              model: currentForProvider?.model ?? getDefaultModel(normalizedProvider),
+              model: currentForProvider?.model ?? DEFAULT_MODEL_BY_PROVIDER[normalizedProvider],
               options: providerOpts,
             };
           } else if (currentForProvider?.options) {
@@ -1757,7 +1765,7 @@ export const useComposerDraftStore = create<ComposerDraftStoreState>()(
               base.modelSelectionByProvider[normalizedProvider] ??
               ({
                 provider: normalizedProvider,
-                model: getDefaultModel(normalizedProvider),
+                model: DEFAULT_MODEL_BY_PROVIDER[normalizedProvider],
               } as ModelSelection);
             if (providerOpts) {
               nextStickyMap[normalizedProvider] = {
