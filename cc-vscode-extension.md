@@ -1,4 +1,5 @@
 # VS Code Extension: Claude Code Orchestration
+
 ### A Roadmap for Replicating t3code's Architecture Inside VS Code
 
 ---
@@ -53,7 +54,7 @@ ProviderCommandReactor           →  SessionManager class (your orchestration l
 OrchestrationEngine              →  CommandQueue + EventEmitter
 ```
 
-**The big win:** In a VS Code extension, there is no separate server process to spawn. The extension host *is* the Node.js process. You call `query()` directly. The architecture simplifies significantly — but you still want the same separation of concerns.
+**The big win:** In a VS Code extension, there is no separate server process to spawn. The extension host _is_ the Node.js process. You call `query()` directly. The architecture simplifies significantly — but you still want the same separation of concerns.
 
 ---
 
@@ -91,6 +92,7 @@ OrchestrationEngine              →  CommandQueue + EventEmitter
 ```
 
 **Data flow for a user turn:**
+
 ```
 User types in WebviewPanel
   → webview postMessage({ type: "sendTurn", text: "..." })
@@ -111,14 +113,14 @@ User types in WebviewPanel
 
 ### Recommended Stack
 
-| Concern | Choice | Why |
-|---------|--------|-----|
-| Extension language | TypeScript | Required for VS Code types |
-| Bundler | `esbuild` | Fast, handles CJS/ESM, VS Code standard |
-| WebView UI | React + Vite OR Svelte | Same as t3code (React) or leaner (Svelte) |
-| State (simple) | `context.globalState` | Built-in, no deps |
-| State (full) | `better-sqlite3` | Same as t3code pattern, works in Node.js |
-| SDK | `@anthropic-ai/claude-agent-sdk` | The exact same package as t3code |
+| Concern            | Choice                           | Why                                       |
+| ------------------ | -------------------------------- | ----------------------------------------- |
+| Extension language | TypeScript                       | Required for VS Code types                |
+| Bundler            | `esbuild`                        | Fast, handles CJS/ESM, VS Code standard   |
+| WebView UI         | React + Vite OR Svelte           | Same as t3code (React) or leaner (Svelte) |
+| State (simple)     | `context.globalState`            | Built-in, no deps                         |
+| State (full)       | `better-sqlite3`                 | Same as t3code pattern, works in Node.js  |
+| SDK                | `@anthropic-ai/claude-agent-sdk` | The exact same package as t3code          |
 
 ### File Structure
 
@@ -162,11 +164,11 @@ my-claude-extension/
   "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
-      { "command": "claude.startSession",   "title": "Claude: Start Session" },
-      { "command": "claude.sendTurn",       "title": "Claude: Send Turn" },
-      { "command": "claude.interrupt",      "title": "Claude: Interrupt" },
-      { "command": "claude.stopSession",    "title": "Claude: Stop Session" },
-      { "command": "claude.openPanel",      "title": "Claude: Open Chat Panel" }
+      { "command": "claude.startSession", "title": "Claude: Start Session" },
+      { "command": "claude.sendTurn", "title": "Claude: Send Turn" },
+      { "command": "claude.interrupt", "title": "Claude: Interrupt" },
+      { "command": "claude.stopSession", "title": "Claude: Stop Session" },
+      { "command": "claude.openPanel", "title": "Claude: Open Chat Panel" }
     ],
     "configuration": {
       "title": "Claude Code",
@@ -199,9 +201,7 @@ my-claude-extension/
       }
     ],
     "viewsContainers": {
-      "activitybar": [
-        { "id": "claude-sidebar", "title": "Claude", "icon": "$(symbol-misc)" }
-      ]
+      "activitybar": [{ "id": "claude-sidebar", "title": "Claude", "icon": "$(symbol-misc)" }]
     }
   },
   "dependencies": {
@@ -272,11 +272,11 @@ export interface SessionStartOptions {
 }
 
 interface ActiveSession {
-  readonly sessionId: string;          // Claude's internal session ID (from system init)
+  readonly sessionId: string; // Claude's internal session ID (from system init)
   readonly promptQueue: PromptQueue;
   readonly approvalManager: ApprovalManager;
   readonly abortController: AbortController;
-  readonly streamLoop: Promise<void>;  // the background for-await loop
+  readonly streamLoop: Promise<void>; // the background for-await loop
   status: "running" | "idle" | "stopped";
   turnCount: number;
 }
@@ -330,7 +330,7 @@ export class SessionManager {
     const streamLoop = this.runStreamLoop(queryRuntime, sessionKey);
 
     const session: ActiveSession = {
-      sessionId: "",      // filled in when we get the system init message
+      sessionId: "", // filled in when we get the system init message
       promptQueue,
       approvalManager,
       abortController,
@@ -415,7 +415,7 @@ export class SessionManager {
 }
 ```
 
-> 💡 **Key insight:** Unlike t3code, you don't need `ChildProcess.spawn()` at all. The SDK spawns claude internally. Your extension host *is* the Node.js process. `query()` is called directly — zero process management on your end.
+> 💡 **Key insight:** Unlike t3code, you don't need `ChildProcess.spawn()` at all. The SDK spawns claude internally. Your extension host _is_ the Node.js process. `query()` is called directly — zero process management on your end.
 
 ---
 
@@ -427,9 +427,7 @@ Same pattern as t3code — an async generator that yields messages as they arriv
 // src/promptQueue.ts
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
-type QueueItem =
-  | { type: "message"; message: SDKUserMessage }
-  | { type: "terminate" };
+type QueueItem = { type: "message"; message: SDKUserMessage } | { type: "terminate" };
 
 export class PromptQueue {
   private pending: Array<QueueItem> = [];
@@ -520,12 +518,12 @@ This is where VS Code diverges most interestingly from t3code. Instead of a cust
 
 ### Approval Strategy Options
 
-| Option | VS Code API | Feel | Complexity |
-|--------|------------|------|-----------|
-| Quick Pick | `vscode.window.showQuickPick` | Native, keyboard-driven | Low |
-| Information Message | `vscode.window.showInformationMessage` | Toast-like, simple | Very Low |
-| WebView dialog | `panel.webview.postMessage` | Fully custom UI | High |
-| Status bar button | `vscode.StatusBarItem` | Subtle, non-blocking | Medium |
+| Option              | VS Code API                            | Feel                    | Complexity |
+| ------------------- | -------------------------------------- | ----------------------- | ---------- |
+| Quick Pick          | `vscode.window.showQuickPick`          | Native, keyboard-driven | Low        |
+| Information Message | `vscode.window.showInformationMessage` | Toast-like, simple      | Very Low   |
+| WebView dialog      | `panel.webview.postMessage`            | Fully custom UI         | High       |
+| Status bar button   | `vscode.StatusBarItem`                 | Subtle, non-blocking    | Medium     |
 
 **Recommended:** Information Message for quick, Quick Pick for detailed.
 
@@ -575,10 +573,14 @@ export class ApprovalManager {
     this.eventBus.emit("approval.resolved", { toolName, choice });
 
     switch (choice) {
-      case "Allow":        return { behavior: "allow" };
-      case "Allow Always": return { behavior: "allowPermanently", ruleType: "prefix", rule: toolName };
-      case "Deny":         return { behavior: "deny" };
-      default:             return { behavior: "deny" }; // dismissed = deny
+      case "Allow":
+        return { behavior: "allow" };
+      case "Allow Always":
+        return { behavior: "allowPermanently", ruleType: "prefix", rule: toolName };
+      case "Deny":
+        return { behavior: "deny" };
+      default:
+        return { behavior: "deny" }; // dismissed = deny
     }
   }
 }
@@ -594,7 +596,7 @@ async function askWithQuickPick(toolName: string, detail: string): Promise<Permi
   const picked = await vscode.window.showQuickPick(items, {
     title: `Claude: Tool Approval`,
     placeHolder: `${toolName} — Allow or deny?`,
-    ignoreFocusOut: true,  // Don't dismiss if user clicks elsewhere
+    ignoreFocusOut: true, // Don't dismiss if user clicks elsewhere
   });
 
   if (!picked || picked.label.includes("Deny")) return { behavior: "deny" };
@@ -637,8 +639,8 @@ import * as vscode from "vscode";
 
 export interface ClaudeResumeCursor {
   readonly version: 1;
-  readonly resume?: string;           // Claude's session UUID
-  readonly resumeSessionAt?: string;  // ISO timestamp
+  readonly resume?: string; // Claude's session UUID
+  readonly resumeSessionAt?: string; // ISO timestamp
   readonly turnCount?: number;
 }
 
@@ -778,11 +780,11 @@ export class PanelManager {
     }
 
     this.panel = vscode.window.createWebviewPanel(
-      "claudeCode",                    // viewType (unique ID)
-      "Claude Code",                   // Title shown in tab
-      vscode.ViewColumn.Beside,        // Open beside current editor
+      "claudeCode", // viewType (unique ID)
+      "Claude Code", // Title shown in tab
+      vscode.ViewColumn.Beside, // Open beside current editor
       {
-        enableScripts: true,           // Required for any JS in the webview
+        enableScripts: true, // Required for any JS in the webview
         retainContextWhenHidden: true, // Keep webview state when tab is hidden
         localResourceRoots: [
           // Allow the webview to load files from your extension's dist/
@@ -848,14 +850,10 @@ export class PanelManager {
 
     // Convert local paths to webview URIs (required for security)
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.file(
-        path.join(this.context.extensionPath, "dist", "webview", "main.js"),
-      ),
+      vscode.Uri.file(path.join(this.context.extensionPath, "dist", "webview", "main.js")),
     );
     const styleUri = webview.asWebviewUri(
-      vscode.Uri.file(
-        path.join(this.context.extensionPath, "dist", "webview", "main.css"),
-      ),
+      vscode.Uri.file(path.join(this.context.extensionPath, "dist", "webview", "main.css")),
     );
 
     // Content Security Policy — required for VS Code webviews
@@ -949,7 +947,12 @@ import type { SDKMessage, SDKResultMessage } from "@anthropic-ai/claude-agent-sd
 export type ClaudeEvent =
   | { type: "session.initialized"; sessionId: string }
   | { type: "turn.started"; turnId: string }
-  | { type: "content.delta"; turnId: string; text: string; kind: "assistant_text" | "reasoning_text" }
+  | {
+      type: "content.delta";
+      turnId: string;
+      text: string;
+      kind: "assistant_text" | "reasoning_text";
+    }
   | { type: "tool.started"; toolName: string; itemId: string; title: string }
   | { type: "tool.input_delta"; itemId: string; partialJson: string }
   | { type: "tool.completed"; itemId: string; output: string; isError: boolean }
@@ -1012,7 +1015,9 @@ export function mapSdkMessage(message: SDKMessage): ClaudeEvent[] {
   return events;
 }
 
-function mapResultStatus(result: SDKResultMessage): "completed" | "interrupted" | "failed" | "cancelled" {
+function mapResultStatus(
+  result: SDKResultMessage,
+): "completed" | "interrupted" | "failed" | "cancelled" {
   if (result.subtype === "success") return "completed";
   const errors = ("errors" in result && Array.isArray(result.errors) ? result.errors : [])
     .join(" ")
@@ -1064,13 +1069,22 @@ export type ExtensionEvent =
   | { type: "content.delta"; sessionKey: string; text: string; kind: string }
   | { type: "tool.started"; sessionKey: string; toolName: string; itemId: string }
   | { type: "tool.completed"; sessionKey: string; itemId: string }
-  | { type: "approval.requested"; sessionKey: string; requestId: string; toolName: string; detail: string }
+  | {
+      type: "approval.requested";
+      sessionKey: string;
+      requestId: string;
+      toolName: string;
+      detail: string;
+    }
   | { type: "approval.resolved"; sessionKey: string; requestId: string; approved: boolean };
 
 export class EventBus {
   private emitter = new EventEmitter();
 
-  emit(type: ExtensionEvent["type"], data: Omit<Extract<ExtensionEvent, { type: typeof type }>, "type">): void {
+  emit(
+    type: ExtensionEvent["type"],
+    data: Omit<Extract<ExtensionEvent, { type: typeof type }>, "type">,
+  ): void {
     this.emitter.emit(type, { type, ...data });
     this.emitter.emit("*", { type, ...data }); // wildcard
   }
@@ -1133,6 +1147,7 @@ export class CommandQueue {
 ## Phase 8: Hooks & Lifecycle Signals
 
 Hooks fire inside the SDK during the turn lifecycle. Use them to:
+
 - Emit VS Code progress notifications
 - Create git checkpoints mid-turn
 - Log tool audit trails
@@ -1177,10 +1192,7 @@ export function makeClaudeHooks(eventBus: EventBus, sessionKey: string): ClaudeH
 export const outputChannel = vscode.window.createOutputChannel("Claude Code", { log: true });
 
 // Status bar item
-export const statusBarItem = vscode.window.createStatusBarItem(
-  vscode.StatusBarAlignment.Left,
-  100,
-);
+export const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
 
 function isFileChangeTool(name: string): boolean {
   const n = name.toLowerCase();
@@ -1212,7 +1224,7 @@ The best part: **you don't need to do anything.** The Claude Agent SDK automatic
 query({
   prompt: promptQueue.asAsyncIterable(),
   options: {
-    cwd: workspaceFolder.uri.fsPath,  // SDK reads CLAUDE.md from here automatically
+    cwd: workspaceFolder.uri.fsPath, // SDK reads CLAUDE.md from here automatically
     model: "claude-opus-4-5",
   },
 });
@@ -1250,14 +1262,16 @@ npm run lint
 - [Add what Claude should or shouldn't change]
 `;
     await fs.writeFile(claudeMdPath, content, "utf8");
-    vscode.window.showInformationMessage(
-      "Created CLAUDE.md in workspace root. Edit it to guide Claude.",
-      "Open CLAUDE.md",
-    ).then((choice) => {
-      if (choice === "Open CLAUDE.md") {
-        vscode.window.showTextDocument(vscode.Uri.file(claudeMdPath));
-      }
-    });
+    vscode.window
+      .showInformationMessage(
+        "Created CLAUDE.md in workspace root. Edit it to guide Claude.",
+        "Open CLAUDE.md",
+      )
+      .then((choice) => {
+        if (choice === "Open CLAUDE.md") {
+          vscode.window.showTextDocument(vscode.Uri.file(claudeMdPath));
+        }
+      });
   }
 }
 ```
@@ -1323,52 +1337,65 @@ export function registerCommands(
   panelManager: PanelManager,
 ): void {
   const cmds: Array<[string, (...args: unknown[]) => unknown]> = [
-    ["claude.openPanel",    () => panelManager.openOrReveal()],
-    ["claude.startSession", () => {
-      const folder = vscode.workspace.workspaceFolders?.[0];
-      if (!folder) return vscode.window.showErrorMessage("No workspace folder open.");
-      const config = vscode.workspace.getConfiguration("claudeCode");
-      return sessionManager.startSession({
-        workspaceFolder: folder,
-        model: config.get("model") ?? "claude-opus-4-5",
-        permissionMode: config.get("permissionMode"),
-      });
-    }],
-    ["claude.interrupt",    () => {
-      const folder = vscode.workspace.workspaceFolders?.[0];
-      if (!folder) return;
-      return sessionManager.interrupt(folder.name);
-    }],
-    ["claude.stopSession",  () => {
-      const folder = vscode.workspace.workspaceFolders?.[0];
-      if (!folder) return;
-      return sessionManager.stopSession(folder.name);
-    }],
-    ["claude.clearHistory", async () => {
-      const folder = vscode.workspace.workspaceFolders?.[0];
-      if (!folder) return;
-      const confirm = await vscode.window.showWarningMessage(
-        "Clear Claude session history? This cannot be undone.",
-        "Clear",
-        "Cancel",
-      );
-      if (confirm === "Clear") {
-        await sessionManager.clearHistory(folder.name);
-        vscode.window.showInformationMessage("Claude history cleared.");
-      }
-    }],
-    ["claude.editClaudeMd", () => {
-      const folder = vscode.workspace.workspaceFolders?.[0];
-      if (!folder) return;
-      const p = path.join(folder.uri.fsPath, "CLAUDE.md");
-      vscode.window.showTextDocument(vscode.Uri.file(p));
-    }],
+    ["claude.openPanel", () => panelManager.openOrReveal()],
+    [
+      "claude.startSession",
+      () => {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) return vscode.window.showErrorMessage("No workspace folder open.");
+        const config = vscode.workspace.getConfiguration("claudeCode");
+        return sessionManager.startSession({
+          workspaceFolder: folder,
+          model: config.get("model") ?? "claude-opus-4-5",
+          permissionMode: config.get("permissionMode"),
+        });
+      },
+    ],
+    [
+      "claude.interrupt",
+      () => {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) return;
+        return sessionManager.interrupt(folder.name);
+      },
+    ],
+    [
+      "claude.stopSession",
+      () => {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) return;
+        return sessionManager.stopSession(folder.name);
+      },
+    ],
+    [
+      "claude.clearHistory",
+      async () => {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) return;
+        const confirm = await vscode.window.showWarningMessage(
+          "Clear Claude session history? This cannot be undone.",
+          "Clear",
+          "Cancel",
+        );
+        if (confirm === "Clear") {
+          await sessionManager.clearHistory(folder.name);
+          vscode.window.showInformationMessage("Claude history cleared.");
+        }
+      },
+    ],
+    [
+      "claude.editClaudeMd",
+      () => {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) return;
+        const p = path.join(folder.uri.fsPath, "CLAUDE.md");
+        vscode.window.showTextDocument(vscode.Uri.file(p));
+      },
+    ],
   ];
 
   for (const [command, handler] of cmds) {
-    context.subscriptions.push(
-      vscode.commands.registerCommand(command, handler),
-    );
+    context.subscriptions.push(vscode.commands.registerCommand(command, handler));
   }
 }
 ```
@@ -1487,12 +1514,15 @@ Mirror t3code's SIGTERM → wait 2s → SIGKILL pattern — adapted for async ge
 ```typescript
 export class SessionManager {
   // Store the query runtime reference so we can call interrupt()
-  private queryRuntimes = new Map<string, {
-    interrupt: () => Promise<void>;
-    setModel: (model?: string) => Promise<void>;
-    setPermissionMode: (mode: string) => Promise<void>;
-    close: () => void;
-  }>();
+  private queryRuntimes = new Map<
+    string,
+    {
+      interrupt: () => Promise<void>;
+      setModel: (model?: string) => Promise<void>;
+      setPermissionMode: (mode: string) => Promise<void>;
+      close: () => void;
+    }
+  >();
 
   async interrupt(sessionKey: string): Promise<void> {
     const runtime = this.queryRuntimes.get(sessionKey);
@@ -1529,7 +1559,7 @@ export class SessionManager {
     this.queryRuntimes.delete(sessionKey);
 
     // 4. Wait for the stream loop to settle
-    const timeout = new Promise<void>(resolve => setTimeout(resolve, 5_000));
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 5_000));
     await Promise.race([session.streamLoop.catch(() => {}), timeout]);
 
     this.sessions.delete(sessionKey);
@@ -1687,42 +1717,46 @@ export function query(params: { prompt: AsyncIterable<unknown>; options: unknown
 
 ## Architecture Cheat Sheet: t3code vs Extension
 
-| Concern | t3code | VS Code Extension |
-|---------|--------|-------------------|
-| **Entry point** | `apps/server/src/index.ts` (Effect CLI) | `src/extension.ts` `activate()` |
-| **Process spawning** | `ChildProcess.spawn(backendEntry)` | Not needed — host is Node.js |
-| **Claude spawn** | `@anthropic-ai/claude-agent-sdk` `query()` | Same: `query()` directly |
-| **Service DI** | Effect `Layer` system | Constructor injection / singletons |
-| **Session store** | SQLite via `@effect/sql-sqlite-bun` | `context.globalState` or `better-sqlite3` |
-| **Event bus** | Effect `PubSub` + `Queue` | `EventEmitter` or `vscode.EventEmitter` |
-| **UI bridge** | WebSocket (`ws://localhost:3773`) | `webview.postMessage` + `onDidReceiveMessage` |
-| **UI framework** | React 19 + TanStack Router | React + Vite (bundled into extension) |
-| **Config** | Env vars + CLI flags | `vscode.workspace.getConfiguration()` |
-| **Logs** | `~/.t3/userdata/logs/` | `vscode.window.createOutputChannel()` |
-| **Persistence dir** | `T3CODE_HOME` (~/.t3) | `context.globalStorageUri.fsPath` |
-| **CLAUDE.md** | SDK reads from `cwd` automatically | Same — SDK reads from workspace `cwd` |
-| **Restart logic** | Exponential backoff in Electron main | N/A — but re-startSession on stream error |
-| **Interrupt** | `queryRuntime.interrupt()` + AbortController | Same |
-| **Shutdown** | SIGTERM → 2s → SIGKILL | `session.promptQueue.terminate()` + `abortController.abort()` |
-| **Worker sync** | `DrainableWorker.drain()` | `CommandQueue` + `Promise.race` with timeout |
-| **Git checkpoints** | `CheckpointReactor` (auto before/after turns) | `PostToolUse` hook + git extension API |
-| **Worktrees** | `~/.t3/worktrees/t3code/<branch>` | `git checkout -b claude/<branch>` |
-| **Testing** | `@effect/vitest` + DrainableWorker drain | Vitest + VS Code extension test runner |
+| Concern              | t3code                                        | VS Code Extension                                             |
+| -------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| **Entry point**      | `apps/server/src/index.ts` (Effect CLI)       | `src/extension.ts` `activate()`                               |
+| **Process spawning** | `ChildProcess.spawn(backendEntry)`            | Not needed — host is Node.js                                  |
+| **Claude spawn**     | `@anthropic-ai/claude-agent-sdk` `query()`    | Same: `query()` directly                                      |
+| **Service DI**       | Effect `Layer` system                         | Constructor injection / singletons                            |
+| **Session store**    | SQLite via `@effect/sql-sqlite-bun`           | `context.globalState` or `better-sqlite3`                     |
+| **Event bus**        | Effect `PubSub` + `Queue`                     | `EventEmitter` or `vscode.EventEmitter`                       |
+| **UI bridge**        | WebSocket (`ws://localhost:3773`)             | `webview.postMessage` + `onDidReceiveMessage`                 |
+| **UI framework**     | React 19 + TanStack Router                    | React + Vite (bundled into extension)                         |
+| **Config**           | Env vars + CLI flags                          | `vscode.workspace.getConfiguration()`                         |
+| **Logs**             | `~/.t3/userdata/logs/`                        | `vscode.window.createOutputChannel()`                         |
+| **Persistence dir**  | `T3CODE_HOME` (~/.t3)                         | `context.globalStorageUri.fsPath`                             |
+| **CLAUDE.md**        | SDK reads from `cwd` automatically            | Same — SDK reads from workspace `cwd`                         |
+| **Restart logic**    | Exponential backoff in Electron main          | N/A — but re-startSession on stream error                     |
+| **Interrupt**        | `queryRuntime.interrupt()` + AbortController  | Same                                                          |
+| **Shutdown**         | SIGTERM → 2s → SIGKILL                        | `session.promptQueue.terminate()` + `abortController.abort()` |
+| **Worker sync**      | `DrainableWorker.drain()`                     | `CommandQueue` + `Promise.race` with timeout                  |
+| **Git checkpoints**  | `CheckpointReactor` (auto before/after turns) | `PostToolUse` hook + git extension API                        |
+| **Worktrees**        | `~/.t3/worktrees/t3code/<branch>`             | `git checkout -b claude/<branch>`                             |
+| **Testing**          | `@effect/vitest` + DrainableWorker drain      | Vitest + VS Code extension test runner                        |
 
 ---
 
 ## Gotchas & Things That'll Bite You
 
 ### 1. WebView is a sandboxed iframe — no Node.js
+
 The webview runs in a browser sandbox. It **cannot** import `@anthropic-ai/claude-agent-sdk` or any Node.js module. All Claude calls must happen in the extension host. Webview is only for UI.
 
 ### 2. `acquireVsCodeApi()` can only be called once
+
 In the webview, `acquireVsCodeApi()` throws if called more than once. Call it at module level, not in a function.
 
 ```typescript
 // ✅ Correct
 const vscode = acquireVsCodeApi();
-export function send(msg: unknown) { vscode.postMessage(msg); }
+export function send(msg: unknown) {
+  vscode.postMessage(msg);
+}
 
 // ❌ Wrong — will throw on second render
 function MyComponent() {
@@ -1731,12 +1765,15 @@ function MyComponent() {
 ```
 
 ### 3. Content Security Policy blocks everything by default
+
 VS Code webviews have a very strict CSP. You **must** use nonces for inline scripts and `webview.cspSource` for local resources. External CDN URLs are blocked. Bundle everything.
 
 ### 4. `retainContextWhenHidden: true` has memory cost
+
 This keeps the webview alive (and its JS heap) even when the tab is hidden. Without it, every time the user hides your panel, the webview is destroyed and re-created, losing all state. Enable it — but be aware it costs ~30-50MB of RAM constantly.
 
 ### 5. The SDK may not find `claude` in PATH inside VS Code
+
 VS Code doesn't always inherit your shell's full PATH (especially on macOS with `.zshrc` / `nvm`). Always provide a `binaryPath` fallback or explicitly fix PATH:
 
 ```typescript
@@ -1759,6 +1796,7 @@ options: {
 ```
 
 ### 6. Session cleanup on extension deactivate
+
 `deactivate()` is called synchronously and cannot be async. You must fire-and-forget your cleanup:
 
 ```typescript
@@ -1771,12 +1809,15 @@ export function deactivate(): void {
 For proper async cleanup, use `context.subscriptions.push({ dispose: () => sessionManager.stopAll() })` in `activate()`.
 
 ### 7. Multi-root workspaces
+
 `vscode.workspace.workspaceFolders` is an array, not a single folder. Your `SessionManager` should key sessions by `workspaceFolder.name` or `workspaceFolder.uri.toString()`, and your UI should let the user pick which folder to use when there are multiple.
 
 ### 8. The approval callback runs in the extension host — not on the UI thread
+
 VS Code UI calls (`showInformationMessage`, `showQuickPick`) are async and can be awaited from the extension host. `canUseTool` is async and works perfectly with `await vscode.window.showQuickPick(...)`. This is one of the cleanest parts of the VS Code extension model.
 
 ### 9. Don't bundle `@anthropic-ai/claude-agent-sdk` with esbuild `bundle: true` naively
+
 The SDK spawns `claude` as a child process and uses Node.js builtins. Bundle the extension host with `platform: "node"` and `external: ["vscode", "path", "fs", ...]`. Bundle the webview separately with `platform: "browser"`.
 
 ```javascript
@@ -1790,7 +1831,7 @@ await build({
   platform: "node",
   target: "node18",
   outfile: "dist/extension.js",
-  external: ["vscode"],  // MUST be external — provided by VS Code runtime
+  external: ["vscode"], // MUST be external — provided by VS Code runtime
   format: "cjs",
 });
 
@@ -1806,4 +1847,4 @@ await build({
 
 ---
 
-*See `cc-cli.md` for the full t3code implementation reference. The patterns above are direct adaptations of what t3code does, translated to the VS Code extension host model.*
+_See `cc-cli.md` for the full t3code implementation reference. The patterns above are direct adaptations of what t3code does, translated to the VS Code extension host model._

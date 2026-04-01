@@ -32,9 +32,7 @@ function applyTheme(theme: Theme, suppressTransitions = false) {
     document.documentElement.classList.add("no-transitions");
   }
   const isDark =
-    theme === "dark" ||
-    theme === "one-dark-pro-darker" ||
-    (theme === "system" && getSystemDark());
+    theme === "dark" || theme === "one-dark-pro-darker" || (theme === "system" && getSystemDark());
   document.documentElement.classList.toggle("dark", isDark);
   document.documentElement.classList.toggle("one-dark-pro-darker", theme === "one-dark-pro-darker");
   syncDesktopTheme(theme);

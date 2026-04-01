@@ -33,10 +33,7 @@ function compactDirectoryNode(node: FileTreeDirectoryNode): FileTreeDirectoryNod
 
   let compacted: FileTreeDirectoryNode = { ...node, children: compactedChildren };
 
-  while (
-    compacted.children.length === 1 &&
-    compacted.children[0]?.kind === "directory"
-  ) {
+  while (compacted.children.length === 1 && compacted.children[0]?.kind === "directory") {
     const onlyChild = compacted.children[0];
     compacted = {
       kind: "directory",

@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2Icon, XIcon } from "lucide-react";
 import Editor, { type OnMount } from "@monaco-editor/react";
-import { projectReadFileQueryOptions, projectWriteFileMutationOptions } from "~/lib/projectReactQuery";
+import {
+  projectReadFileQueryOptions,
+  projectWriteFileMutationOptions,
+} from "~/lib/projectReactQuery";
 import { useFileViewerStore } from "~/fileViewerStore";
 import { isElectron } from "~/env";
 import { useTheme } from "~/hooks/useTheme";
@@ -137,11 +140,7 @@ function FileContent({
             disabled={saveMutation.isPending}
             className="inline-flex h-6 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saveMutation.isPending ? (
-              <Loader2Icon className="size-3 animate-spin" />
-            ) : (
-              "Save"
-            )}
+            {saveMutation.isPending ? <Loader2Icon className="size-3 animate-spin" /> : "Save"}
           </button>
         </div>
       )}

@@ -172,7 +172,9 @@ const DiffPanelInlineSidebar = (props: {
 const FileViewerResizablePanel = () => {
   const { open } = useFileViewerStore();
   const [width, setWidth] = useState(
-    () => getLocalStorageItem(FILE_VIEWER_WIDTH_STORAGE_KEY, Schema.Finite) ?? FILE_VIEWER_DEFAULT_WIDTH,
+    () =>
+      getLocalStorageItem(FILE_VIEWER_WIDTH_STORAGE_KEY, Schema.Finite) ??
+      FILE_VIEWER_DEFAULT_WIDTH,
   );
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -193,7 +195,12 @@ const FileViewerResizablePanel = () => {
       const currentWidth = outer.getBoundingClientRect().width;
       outer.style.transitionDuration = "0ms";
       e.currentTarget.setPointerCapture(e.pointerId);
-      dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startWidth: currentWidth, currentWidth };
+      dragRef.current = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startWidth: currentWidth,
+        currentWidth,
+      };
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
@@ -253,7 +260,7 @@ const FileViewerResizablePanel = () => {
 };
 
 function ChatThreadRouteView() {
-  const threadsHydrated = useStore((store) => store.threadsHydrated);
+  const bootstrapComplete = useStore((store) => store.bootstrapComplete);
   const navigate = useNavigate();
   const threadId = Route.useParams({
     select: (params) => ThreadId.makeUnsafe(params.threadId),
@@ -294,7 +301,7 @@ function ChatThreadRouteView() {
   }, [diffOpen]);
 
   useEffect(() => {
-    if (!threadsHydrated) {
+    if (!bootstrapComplete) {
       return;
     }
 
@@ -302,9 +309,9 @@ function ChatThreadRouteView() {
       void navigate({ to: "/", replace: true });
       return;
     }
-  }, [navigate, routeThreadExists, threadsHydrated, threadId]);
+  }, [bootstrapComplete, navigate, routeThreadExists, threadId]);
 
-  if (!threadsHydrated || !routeThreadExists) {
+  if (!bootstrapComplete || !routeThreadExists) {
     return null;
   }
 

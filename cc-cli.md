@@ -53,6 +53,7 @@
 t3code is a **web GUI for coding agents** (Claude Code and Codex). It is a Turbo monorepo built with Bun. The server is a Node.js/Effect.ts WebSocket server that acts as a broker between the browser React app and the underlying AI runtimes.
 
 **Key design principles:**
+
 - All client ↔ server communication goes through **WebSocket only** (no REST for core ops)
 - The orchestration engine is **event-sourced** — all state is derived from persisted events in SQLite
 - Providers (Claude, Codex) are **adapters** behind a common interface — the orchestration layer is entirely provider-agnostic
@@ -87,13 +88,13 @@ t3code is a **web GUI for coding agents** (Claude Code and Codex). It is a Turbo
 
 ### Package Roles
 
-| Package | Role |
-|---------|------|
-| `apps/server` | Node.js WebSocket server. Entry: `src/index.ts` (Effect.ts CLI). Core dirs: `orchestration/`, `provider/`, `terminal/`, `git/`, `persistence/`. Published as the `t3` CLI binary. |
-| `apps/web` | React 19 / Vite SPA. Uses TanStack Router, TanStack Query, Zustand, xterm.js. Key component: `ChatView.tsx`. |
-| `apps/desktop` | Electron wrapper. Main process: `src/main.ts`. Spawns the server as a child process; IPC bridges for file picker, theme, auto-update, `t3://` protocol. |
-| `packages/contracts` | Shared Effect Schema definitions for WebSocket protocol, provider events, session types. **Schema-only — zero runtime logic.** |
-| `packages/shared` | Shared runtime utilities (git, logging, shell, net). Uses explicit subpath exports (`@t3tools/shared/git`), no barrel index. |
+| Package              | Role                                                                                                                                                                              |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/server`        | Node.js WebSocket server. Entry: `src/index.ts` (Effect.ts CLI). Core dirs: `orchestration/`, `provider/`, `terminal/`, `git/`, `persistence/`. Published as the `t3` CLI binary. |
+| `apps/web`           | React 19 / Vite SPA. Uses TanStack Router, TanStack Query, Zustand, xterm.js. Key component: `ChatView.tsx`.                                                                      |
+| `apps/desktop`       | Electron wrapper. Main process: `src/main.ts`. Spawns the server as a child process; IPC bridges for file picker, theme, auto-update, `t3://` protocol.                           |
+| `packages/contracts` | Shared Effect Schema definitions for WebSocket protocol, provider events, session types. **Schema-only — zero runtime logic.**                                                    |
+| `packages/shared`    | Shared runtime utilities (git, logging, shell, net). Uses explicit subpath exports (`@t3tools/shared/git`), no barrel index.                                                      |
 
 ### Data Flow (User Turn)
 
@@ -183,7 +184,9 @@ function startBackend(): void {
   backendProcess = child;
 
   // Reset the restart counter as soon as the process successfully spawns
-  child.once("spawn", () => { restartAttempt = 0; });
+  child.once("spawn", () => {
+    restartAttempt = 0;
+  });
 
   // Trigger exponential-backoff restart on error or unexpected exit
   child.on("error", (error) => {
@@ -221,17 +224,20 @@ function scheduleBackendRestart(reason: string): void {
 
 ```typescript
 function stopBackend(): void {
-  if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
+  }
 
   const child = backendProcess;
   backendProcess = null;
   if (!child) return;
 
   if (child.exitCode === null && child.signalCode === null) {
-    child.kill("SIGTERM");          // Ask nicely
+    child.kill("SIGTERM"); // Ask nicely
     setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");      // Force kill after 2 seconds
+        child.kill("SIGKILL"); // Force kill after 2 seconds
       }
     }, 2_000).unref();
   }
@@ -261,14 +267,15 @@ const result = query({
     resumeSessionAt: resumeState?.resumeSessionAt,
     signal: abortController.signal,
     includePartialMessages: true,
-    canUseTool: makeCanUseTool(),  // approval callback
-    hooks: makeClaudeHooks(),      // lifecycle hooks
+    canUseTool: makeCanUseTool(), // approval callback
+    hooks: makeClaudeHooks(), // lifecycle hooks
   },
 });
 // result is AsyncIterable<SDKMessage> + control methods
 ```
 
 `result` implements `ClaudeQueryRuntime`:
+
 ```typescript
 interface ClaudeQueryRuntime extends AsyncIterable<SDKMessage> {
   readonly interrupt: () => Promise<void>;
@@ -311,14 +318,14 @@ output.on("line", (line) => {
 
 **JSON-RPC methods used:**
 
-| Method | Purpose |
-|--------|---------|
-| `initialize` | Start codex session |
-| `model/list` | List available models |
-| `account/read` | Get account info |
-| `thread/start` | Create new thread with `{ model, cwd, approvalPolicy, sandbox }` |
-| `thread/resume` | Resume from stored thread ID |
-| `turn/start` | Send user input for a turn |
+| Method          | Purpose                                                          |
+| --------------- | ---------------------------------------------------------------- |
+| `initialize`    | Start codex session                                              |
+| `model/list`    | List available models                                            |
+| `account/read`  | Get account info                                                 |
+| `thread/start`  | Create new thread with `{ model, cwd, approvalPolicy, sandbox }` |
+| `thread/resume` | Resume from stored thread ID                                     |
+| `turn/start`    | Send user input for a turn                                       |
 
 This is NOT how Claude works — Claude uses the SDK's async iterable, not a subprocess with JSON-RPC.
 
@@ -328,27 +335,27 @@ This is NOT how Claude works — Claude uses the SDK's async iterable, not a sub
 
 ### Variables the Server Reads
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `T3CODE_MODE` | `"web"` or `"desktop"` | `"web"` |
-| `T3CODE_PORT` | HTTP/WebSocket server port | `3773` (auto-selected in web mode) |
-| `T3CODE_HOST` | Bind address | Auto (web) / `"127.0.0.1"` (desktop) |
-| `T3CODE_HOME` | Base directory for all app state | `~/.t3` |
-| `T3CODE_AUTH_TOKEN` | WebSocket auth token (set by desktop) | `undefined` |
-| `T3CODE_NO_BROWSER` | Skip opening browser on start | `false` |
-| `T3CODE_LOG_WS_EVENTS` | Enable WebSocket event debug logging | `false` |
-| `VITE_WS_URL` | Overrides the WebSocket URL in the web build | — |
+| Variable               | Purpose                                      | Default                              |
+| ---------------------- | -------------------------------------------- | ------------------------------------ |
+| `T3CODE_MODE`          | `"web"` or `"desktop"`                       | `"web"`                              |
+| `T3CODE_PORT`          | HTTP/WebSocket server port                   | `3773` (auto-selected in web mode)   |
+| `T3CODE_HOST`          | Bind address                                 | Auto (web) / `"127.0.0.1"` (desktop) |
+| `T3CODE_HOME`          | Base directory for all app state             | `~/.t3`                              |
+| `T3CODE_AUTH_TOKEN`    | WebSocket auth token (set by desktop)        | `undefined`                          |
+| `T3CODE_NO_BROWSER`    | Skip opening browser on start                | `false`                              |
+| `T3CODE_LOG_WS_EVENTS` | Enable WebSocket event debug logging         | `false`                              |
+| `VITE_WS_URL`          | Overrides the WebSocket URL in the web build | —                                    |
 
 ### Variables Passed by Desktop to Server
 
 ```typescript
 function backendEnv(): NodeJS.ProcessEnv {
   return {
-    ...process.env,           // Inherit everything from Electron's env
+    ...process.env, // Inherit everything from Electron's env
     T3CODE_MODE: "desktop",
     T3CODE_NO_BROWSER: "1",
-    T3CODE_PORT: String(backendPort),   // randomly selected free port
-    T3CODE_HOME: BASE_DIR,              // e.g. ~/.t3
+    T3CODE_PORT: String(backendPort), // randomly selected free port
+    T3CODE_HOME: BASE_DIR, // e.g. ~/.t3
     T3CODE_AUTH_TOKEN: backendAuthToken, // randomly generated UUID
   };
 }
@@ -393,19 +400,19 @@ import {
 
 ```typescript
 interface ClaudeQueryOptions {
-  cwd?: string;                          // Working directory for the agent
-  model?: string;                        // e.g. "claude-opus-4-5"
-  permissionMode?: PermissionMode;       // See: Permission Modes
-  maxThinkingTokens?: number | null;     // Extended thinking budget
-  pathToClaudeCodeExecutable?: string;   // Override claude binary path
-  resume?: string;                       // Opaque session ID to resume
-  resumeSessionAt?: string;             // ISO timestamp to resume at
-  signal?: AbortSignal;                  // For interruption
-  includePartialMessages?: boolean;      // Stream partial tool results
-  canUseTool?: CanUseTool;              // Approval callback
-  hooks?: ClaudeHooks;                  // Lifecycle hooks
-  env?: Record<string, string>;         // Extra env for the subprocess
-  additionalDirectories?: string[];      // Extra dirs agent can access
+  cwd?: string; // Working directory for the agent
+  model?: string; // e.g. "claude-opus-4-5"
+  permissionMode?: PermissionMode; // See: Permission Modes
+  maxThinkingTokens?: number | null; // Extended thinking budget
+  pathToClaudeCodeExecutable?: string; // Override claude binary path
+  resume?: string; // Opaque session ID to resume
+  resumeSessionAt?: string; // ISO timestamp to resume at
+  signal?: AbortSignal; // For interruption
+  includePartialMessages?: boolean; // Stream partial tool results
+  canUseTool?: CanUseTool; // Approval callback
+  hooks?: ClaudeHooks; // Lifecycle hooks
+  env?: Record<string, string>; // Extra env for the subprocess
+  additionalDirectories?: string[]; // Extra dirs agent can access
 }
 ```
 
@@ -413,13 +420,13 @@ interface ClaudeQueryOptions {
 
 The async iterable yields these message types:
 
-| Type | Subtype | Meaning |
-|------|---------|---------|
-| `"assistant"` | — | Assistant message (text or tool use blocks) |
-| `"user"` | — | Tool results returned to the model |
-| `"result"` | `"success"` | Turn completed successfully |
-| `"result"` | `"error_during_execution"` | Turn failed or was interrupted |
-| `"system"` | `"init"` | Session initialized, contains `session_id` |
+| Type          | Subtype                    | Meaning                                     |
+| ------------- | -------------------------- | ------------------------------------------- |
+| `"assistant"` | —                          | Assistant message (text or tool use blocks) |
+| `"user"`      | —                          | Tool results returned to the model          |
+| `"result"`    | `"success"`                | Turn completed successfully                 |
+| `"result"`    | `"error_during_execution"` | Turn failed or was interrupted              |
+| `"system"`    | `"init"`                   | Session initialized, contains `session_id`  |
 
 Plus streaming delta events for partial content (when `includePartialMessages: true`).
 
@@ -428,19 +435,22 @@ Plus streaming delta events for partial content (when `includePartialMessages: t
 The SDK returns a native async iterable. t3code bridges this to an Effect `Stream` in two ways:
 
 **Preferred (Effect built-in):**
+
 ```typescript
 const sdkMessageStream = Stream.fromAsyncIterable(
   session.result,
-  (cause) => new ProviderAdapterProcessError({
-    provider: "claudeAgent",
-    sessionId,
-    detail: "Claude runtime stream failed.",
-    cause,
-  }),
+  (cause) =>
+    new ProviderAdapterProcessError({
+      provider: "claudeAgent",
+      sessionId,
+      detail: "Claude runtime stream failed.",
+      cause,
+    }),
 );
 ```
 
 **Portable fallback (used in the actual implementation):**
+
 ```typescript
 const sdkMessageStream = Stream.async<SDKMessage, ProviderAdapterProcessError>((emit) => {
   let cancelled = false;
@@ -453,17 +463,21 @@ const sdkMessageStream = Stream.async<SDKMessage, ProviderAdapterProcessError>((
       }
       emit.end();
     } catch (cause) {
-      emit.fail(new ProviderAdapterProcessError({
-        provider: "claudeAgent",
-        sessionId,
-        detail: "Claude runtime stream failed.",
-        cause,
-      }));
+      emit.fail(
+        new ProviderAdapterProcessError({
+          provider: "claudeAgent",
+          sessionId,
+          detail: "Claude runtime stream failed.",
+          cause,
+        }),
+      );
     }
   })();
 
   // Cleanup: set cancelled flag to stop consuming the async iterable
-  return Effect.sync(() => { cancelled = true; });
+  return Effect.sync(() => {
+    cancelled = true;
+  });
 });
 ```
 
@@ -500,12 +514,12 @@ The Claude adapter keeps this context object per session in memory:
 ```typescript
 interface ClaudeSessionContext {
   session: ProviderSession;
-  readonly promptQueue: Queue.Queue<PromptQueueItem>;     // Effect queue for multi-turn input
-  readonly query: ClaudeQueryRuntime;                      // The async iterable + controls
-  streamFiber: Fiber.Fiber<void, Error> | undefined;       // Background stream consumer
-  readonly startedAt: string;                              // ISO timestamp
+  readonly promptQueue: Queue.Queue<PromptQueueItem>; // Effect queue for multi-turn input
+  readonly query: ClaudeQueryRuntime; // The async iterable + controls
+  streamFiber: Fiber.Fiber<void, Error> | undefined; // Background stream consumer
+  readonly startedAt: string; // ISO timestamp
   readonly basePermissionMode: PermissionMode | undefined;
-  resumeSessionId: string | undefined;                     // Claude's internal session ID
+  resumeSessionId: string | undefined; // Claude's internal session ID
   readonly pendingApprovals: Map<ApprovalRequestId, PendingApproval>;
   readonly pendingUserInputs: Map<ApprovalRequestId, PendingUserInput>;
   readonly turns: Array<{ id: TurnId; items: Array<unknown> }>;
@@ -524,10 +538,10 @@ The resume cursor is **adapter-owned opaque state** — nothing outside the Clau
 ```typescript
 // Internal shape — only ClaudeAdapter reads/writes this
 interface ClaudeResumeState {
-  readonly threadId?: ThreadId;         // Claude's conversation thread ID
-  readonly resume?: string;             // UUID: opaque session ID from Claude
-  readonly resumeSessionAt?: string;    // ISO timestamp: resume from specific point
-  readonly turnCount?: number;          // Used to validate resume feasibility
+  readonly threadId?: ThreadId; // Claude's conversation thread ID
+  readonly resume?: string; // UUID: opaque session ID from Claude
+  readonly resumeSessionAt?: string; // ISO timestamp: resume from specific point
+  readonly turnCount?: number; // Used to validate resume feasibility
 }
 
 // Serialized into resumeCursor as opaque JSON in the DB
@@ -541,6 +555,7 @@ function readClaudeResumeState(resumeCursor: unknown): ClaudeResumeState | undef
 ```
 
 **Rules:**
+
 1. Serialize only adapter-owned fields into `resumeCursor`
 2. Parse/validate only inside the Claude adapter
 3. Never overload the orchestration `threadId` as Claude's internal thread ID
@@ -552,20 +567,20 @@ function readClaudeResumeState(resumeCursor: unknown): ClaudeResumeState | undef
 
 Claude Code supports these permission modes (passed directly to the SDK):
 
-| Mode | Behavior |
-|------|---------|
-| `"default"` | Standard Claude Code behavior |
-| `"acceptEdits"` | Auto-approve file edits, ask for commands |
-| `"bypassPermissions"` | Allow everything without asking |
-| `"plan"` | Plan mode — only proposes changes, doesn't execute |
-| `"dontAsk"` | Never ask for permissions |
+| Mode                  | Behavior                                           |
+| --------------------- | -------------------------------------------------- |
+| `"default"`           | Standard Claude Code behavior                      |
+| `"acceptEdits"`       | Auto-approve file edits, ask for commands          |
+| `"bypassPermissions"` | Allow everything without asking                    |
+| `"plan"`              | Plan mode — only proposes changes, doesn't execute |
+| `"dontAsk"`           | Never ask for permissions                          |
 
 t3code maps these to two user-facing runtime modes:
 
-| UI Mode | SDK permissionMode | Codex equivalent |
-|---------|-------------------|-----------------|
-| **Full access** | `"bypassPermissions"` | `approvalPolicy: never`, `sandbox: danger-full-access` |
-| **Supervised** | `"default"` | `approvalPolicy: on-request`, `sandbox: workspace-write` |
+| UI Mode         | SDK permissionMode    | Codex equivalent                                         |
+| --------------- | --------------------- | -------------------------------------------------------- |
+| **Full access** | `"bypassPermissions"` | `approvalPolicy: never`, `sandbox: danger-full-access`   |
+| **Supervised**  | `"default"`           | `approvalPolicy: on-request`, `sandbox: workspace-write` |
 
 The permission mode is passed through `ProviderStartOptions`:
 
@@ -628,6 +643,7 @@ function buildUserMessage(input: {
 ```
 
 Content blocks can be:
+
 - `{ type: "text", text: string }` — plain text prompt
 - `{ type: "image", source: { type: "base64", media_type: string, data: string } }` — image attachment
 
@@ -730,6 +746,7 @@ function makeClaudeHooks(): ClaudeHooks {
 ```
 
 Hooks fire **inside** the SDK, synchronously within the SDK's turn lifecycle, before the next message is emitted to the async iterable. Use them for:
+
 - Emitting checkpoint/milestone receipts
 - Capturing intermediate state
 - Logging tool use audit trails
@@ -740,18 +757,18 @@ Hooks fire **inside** the SDK, synchronously within the SDK's turn lifecycle, be
 
 The Claude adapter translates raw SDK messages into canonical `ProviderRuntimeEvent` shapes that the rest of the orchestration layer understands (and that Codex also uses). This is what keeps the orchestration layer provider-agnostic.
 
-| SDK Message | Canonical Event |
-|------------|----------------|
-| `assistant` message with text block | `content.delta` (streaming) → `item.completed` (final) |
-| `assistant` message with thinking block | `content.delta` (kind: `reasoning_text`) |
-| `assistant` message with `tool_use` block | `tool.started` → streaming input → `tool.completed` |
-| User `tool_result` block | Tool output stream events |
-| `result` with `subtype: "success"` | `turn.completed` (status: `"completed"`) |
-| `result` with interruption | `turn.completed` (status: `"interrupted"`) |
-| `result` with error | `turn.completed` (status: `"failed"`) |
-| `system` with `init` | `session.started` (contains Claude's session ID) |
-| `ExitPlanMode` tool | Captured as proposed plan content |
-| Approval via `canUseTool` | `request.opened` → `request.resolved` |
+| SDK Message                               | Canonical Event                                        |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `assistant` message with text block       | `content.delta` (streaming) → `item.completed` (final) |
+| `assistant` message with thinking block   | `content.delta` (kind: `reasoning_text`)               |
+| `assistant` message with `tool_use` block | `tool.started` → streaming input → `tool.completed`    |
+| User `tool_result` block                  | Tool output stream events                              |
+| `result` with `subtype: "success"`        | `turn.completed` (status: `"completed"`)               |
+| `result` with interruption                | `turn.completed` (status: `"interrupted"`)             |
+| `result` with error                       | `turn.completed` (status: `"failed"`)                  |
+| `system` with `init`                      | `session.started` (contains Claude's session ID)       |
+| `ExitPlanMode` tool                       | Captured as proposed plan content                      |
+| Approval via `canUseTool`                 | `request.opened` → `request.resolved`                  |
 
 Turn status mapping:
 
@@ -780,6 +797,7 @@ function isInterruptedResult(result: SDKResultMessage): boolean {
 ## Interrupt & Stop Semantics
 
 **Interrupt a running turn** (user clicks stop mid-generation):
+
 ```typescript
 // ClaudeQueryRuntime.interrupt()
 await context.query.interrupt();
@@ -788,6 +806,7 @@ await context.query.interrupt();
 ```
 
 **Stop a session** (session closed, project switched):
+
 ```typescript
 // 1. Push terminate signal to the prompt queue
 await Queue.offer(context.promptQueue, { type: "terminate" });
@@ -807,11 +826,13 @@ context.stopped = true;
 ```
 
 **Change model mid-session:**
+
 ```typescript
 await context.query.setModel("claude-opus-4-5");
 ```
 
 **Change permission mode mid-session:**
+
 ```typescript
 await context.query.setPermissionMode("bypassPermissions");
 ```
@@ -858,11 +879,11 @@ All operations go through a strict pipeline. Nothing talks directly to the provi
 
 Three long-running workers process work asynchronously:
 
-| Worker | Purpose |
-|--------|---------|
-| `ProviderRuntimeIngestion` | Consumes provider runtime streams, emits orchestration commands |
-| `ProviderCommandReactor` | Reacts to orchestration events, dispatches provider calls |
-| `CheckpointReactor` | Captures git checkpoints on turn start/complete, publishes receipts |
+| Worker                     | Purpose                                                             |
+| -------------------------- | ------------------------------------------------------------------- |
+| `ProviderRuntimeIngestion` | Consumes provider runtime streams, emits orchestration commands     |
+| `ProviderCommandReactor`   | Reacts to orchestration events, dispatches provider calls           |
+| `CheckpointReactor`        | Captures git checkpoints on turn start/complete, publishes receipts |
 
 All three use `DrainableWorker` from `@t3tools/shared/DrainableWorker` — a queue-backed worker that exposes `drain()` for deterministic test synchronization. This is critical for making tests wait for all async work to settle without polling.
 
@@ -888,7 +909,7 @@ const provider = inferProviderForModel(model) ?? defaultProvider;
 // Provider-aware start:
 await providerService.startSession({
   threadId,
-  provider,           // "claudeAgent" | "codex"
+  provider, // "claudeAgent" | "codex"
   cwd: project.cwd,
   model,
   providerOptions: {
@@ -896,13 +917,14 @@ await providerService.startSession({
       binaryPath: settings.claudeBinaryPath,
       permissionMode: settings.permissionMode,
       maxThinkingTokens: settings.maxThinkingTokens,
-    }
+    },
   },
   resumeCursor: existingSession?.resumeCursor, // opaque, adapter-owned
 });
 ```
 
 Worktree branch naming convention:
+
 ```typescript
 const WORKTREE_BRANCH_PREFIX = "t3code";
 // Generated branches: "t3code/feature-name" or "t3code/<8-char-hex-hash>"
@@ -927,11 +949,13 @@ Connection states: `connecting → open → reconnecting → closed → disposed
 ### Message Format
 
 **Requests (client → server):** JSON-RPC style
+
 ```json
 { "id": "req-123", "method": "orchestration.dispatchCommand", "params": { ... } }
 ```
 
 **Responses (server → client):**
+
 ```json
 { "id": "req-123", "result": { ... } }
 // or
@@ -939,6 +963,7 @@ Connection states: `connecting → open → reconnecting → closed → disposed
 ```
 
 **Push events (server → client):** Typed envelopes
+
 ```json
 {
   "channel": "orchestration.domainEvent",
@@ -949,26 +974,26 @@ Connection states: `connecting → open → reconnecting → closed → disposed
 
 ### Push Channels
 
-| Channel | Purpose |
-|---------|---------|
-| `server.welcome` | Initial state hydration on connect |
-| `server.configUpdated` | Settings changed |
-| `terminal.event` | PTY terminal output |
-| `orchestration.domainEvent` | All session/turn/approval events |
+| Channel                     | Purpose                            |
+| --------------------------- | ---------------------------------- |
+| `server.welcome`            | Initial state hydration on connect |
+| `server.configUpdated`      | Settings changed                   |
+| `terminal.event`            | PTY terminal output                |
+| `orchestration.domainEvent` | All session/turn/approval events   |
 
 ### NativeApi Methods (WebSocket RPC)
 
 ```typescript
 // Provider operations
-providers.startSession(input)
-providers.sendTurn(input)
-providers.interruptTurn(input)
-providers.respondToRequest(input)  // approval responses
-providers.stopSession(input)
+providers.startSession(input);
+providers.sendTurn(input);
+providers.interruptTurn(input);
+providers.respondToRequest(input); // approval responses
+providers.stopSession(input);
 
 // System
-shell.openInEditor(input)
-server.getConfig()
+shell.openInEditor(input);
+server.getConfig();
 ```
 
 ---
@@ -998,6 +1023,7 @@ CREATE TABLE provider_session_runtime (
 ### Event Store (Orchestration)
 
 All orchestration events are stored as an append-only event log. The current state is always re-derived from events (event sourcing). This enables:
+
 - Session recovery after crashes
 - Checkpoint revert (roll back to any prior state)
 - Full audit trail of all agent actions
@@ -1076,6 +1102,7 @@ All orchestration events are stored as an append-only event log. The current sta
 ### CLAUDE.md
 
 Located at the repo root. Claude Code reads this automatically when running in the project directory. Use it for:
+
 - Build/test/lint commands the agent needs to know
 - Architecture overview and key design decisions
 - Environment variables reference
@@ -1084,16 +1111,19 @@ Located at the repo root. Claude Code reads this automatically when running in t
 
 ```markdown
 # CLAUDE.md
+
 This file provides guidance to Claude Code when working with code in this repository.
 
 ## Commands
-bun run dev            # All apps in parallel
-bun run test           # All tests (never use `bun test` directly)
-bun fmt                # Format
-bun lint               # Lint
-bun typecheck          # Type check
+
+bun run dev # All apps in parallel
+bun run test # All tests (never use `bun test` directly)
+bun fmt # Format
+bun lint # Lint
+bun typecheck # Type check
 
 ## Architecture
+
 ...
 ```
 
@@ -1102,6 +1132,7 @@ bun typecheck          # Type check
 ### AGENTS.md
 
 Also at the repo root. Read by Codex and general agents (not Claude-specific). Contains:
+
 - Task completion requirements
 - Project-wide conventions
 - Reference repos/docs
@@ -1109,7 +1140,9 @@ Also at the repo root. Read by Codex and general agents (not Claude-specific). C
 
 ```markdown
 # AGENTS.md
+
 ## Task Completion Requirements
+
 - All of `bun fmt`, `bun lint`, and `bun typecheck` must pass before completing tasks.
 - NEVER run `bun test`. Always use `bun run test`.
 ```
@@ -1124,16 +1157,16 @@ interface ServerConfigShape {
   mode: "web" | "desktop";
   port: number;
   host: string | undefined;
-  t3Home: string;           // ~/.t3
+  t3Home: string; // ~/.t3
   authToken: string | undefined;
   noBrowser: boolean;
   logWebSocketEvents: boolean;
   // Derived paths:
-  stateDir: string;         // ~/.t3/userdata
-  sqlitePath: string;       // ~/.t3/userdata/state.sqlite
-  logsDir: string;          // ~/.t3/userdata/logs
-  attachmentsDir: string;   // ~/.t3/userdata/attachments
-  worktreesDir: string;     // ~/.t3/worktrees
+  stateDir: string; // ~/.t3/userdata
+  sqlitePath: string; // ~/.t3/userdata/state.sqlite
+  logsDir: string; // ~/.t3/userdata/logs
+  attachmentsDir: string; // ~/.t3/userdata/attachments
+  worktreesDir: string; // ~/.t3/worktrees
 }
 ```
 
@@ -1203,17 +1236,20 @@ Git worktrees allow Claude to work in isolated branches without affecting the ma
 **Directory:** `~/.t3/worktrees/t3code/<branch-name>/`
 
 **Branch naming:**
+
 ```
 t3code/feature-name        # Named worktrees
 t3code/<8-char-hex-hash>   # Temporary auto-generated worktrees
 ```
 
 **Pattern for temporary branches:**
+
 ```typescript
 const TEMP_WORKTREE_BRANCH_PATTERN = /^t3code\/[0-9a-f]{8}$/;
 ```
 
 The `GitManager` service (in `packages/shared/src/git.ts`) handles:
+
 - Creating worktrees (`git worktree add`)
 - Detecting worktree vs. main checkout
 - Commit, diff, status operations
@@ -1230,23 +1266,27 @@ Worktrees are passed to Claude as `cwd` in the session start input, so the agent
 Checkpoints capture git state at important milestones so users can roll back.
 
 **Checkpoint triggers:**
+
 - Automatic: Before each turn starts (pre-turn snapshot)
 - Automatic: After each turn completes (post-turn snapshot)
 - Manual: Via `checkpoint.create` command from the UI
 
 **Stored per checkpoint:**
+
 - Git commit hash (or tree hash if uncommitted)
 - Turn ID association
 - ISO timestamp
 - Diff from previous checkpoint
 
 **Rollback strategy for Claude:**
+
 - Option A: If SDK supports session rewind natively — use `resumeSessionAt` with a prior timestamp
 - Option B: Stop session, clear/rewrite `resumeCursor` to last safe resumable point, force fresh session start from orchestration state
 
 **Runtime receipts:**
 
 The `RuntimeReceiptBus` emits typed signals when async milestones complete:
+
 ```typescript
 type RuntimeReceipt =
   | { type: "checkpoint.captured"; turnId: TurnId; commitHash: string }
@@ -1312,7 +1352,7 @@ const promptQueue: Array<{ resolve: (msg: SDKUserMessage | null) => void }> = []
 
 async function* makePrompt(): AsyncIterable<SDKUserMessage> {
   while (true) {
-    const item = await new Promise<SDKUserMessage | null>(resolve => {
+    const item = await new Promise<SDKUserMessage | null>((resolve) => {
       promptQueue.push({ resolve });
     });
     if (item === null) break; // terminate signal
@@ -1325,7 +1365,7 @@ const session = query({
   options: {
     cwd: "/path/to/project",
     model: "claude-opus-4-5",
-    permissionMode: "default",           // or "bypassPermissions" for full access
+    permissionMode: "default", // or "bypassPermissions" for full access
     includePartialMessages: true,
     signal: abortController.signal,
     canUseTool: async (toolName, input) => {
@@ -1406,7 +1446,7 @@ const child = ChildProcess.spawn(process.execPath, ["/path/to/server.mjs"], {
   cwd: projectDir,
   env: {
     ...process.env,
-    ELECTRON_RUN_AS_NODE: "1",   // critical for Electron
+    ELECTRON_RUN_AS_NODE: "1", // critical for Electron
     MY_APP_PORT: String(port),
     MY_APP_AUTH_TOKEN: authToken,
   },
@@ -1427,26 +1467,33 @@ setTimeout(() => child.kill("SIGKILL"), 2000);
 
 ```markdown
 # CLAUDE.md
+
 This file provides guidance to Claude Code when working with this repository.
 
 ## Commands
-npm test           # Run tests
-npm run build      # Build
-npm run lint       # Lint
+
+npm test # Run tests
+npm run build # Build
+npm run lint # Lint
 
 ## Architecture
+
 [Your architecture description here]
 
 ## Important Rules
+
 [What Claude should/shouldn't do]
 ```
 
 ### 6. Handle Tool Approval for Supervised Mode
 
 ```typescript
-const pendingApprovals = new Map<string, {
-  resolve: (result: { behavior: "allow" | "deny" }) => void
-}>();
+const pendingApprovals = new Map<
+  string,
+  {
+    resolve: (result: { behavior: "allow" | "deny" }) => void;
+  }
+>();
 
 const canUseTool = async (toolName: string, input: unknown) => {
   const requestId = crypto.randomUUID();
@@ -1455,7 +1502,7 @@ const canUseTool = async (toolName: string, input: unknown) => {
   sendToUI({ type: "approval_requested", requestId, toolName, input });
 
   // Wait for user response
-  const result = await new Promise<{ behavior: "allow" | "deny" }>(resolve => {
+  const result = await new Promise<{ behavior: "allow" | "deny" }>((resolve) => {
     pendingApprovals.set(requestId, { resolve });
   });
 
@@ -1466,7 +1513,7 @@ const canUseTool = async (toolName: string, input: unknown) => {
 // When UI responds:
 function handleApprovalResponse(requestId: string, approved: boolean) {
   pendingApprovals.get(requestId)?.resolve({
-    behavior: approved ? "allow" : "deny"
+    behavior: approved ? "allow" : "deny",
   });
 }
 ```
@@ -1484,4 +1531,4 @@ function handleApprovalResponse(requestId: string, approved: boolean) {
 
 ---
 
-*Generated from codebase analysis — see `.plans/17-claude-agent.md` for the full integration plan and `.docs/` for additional architecture documentation.*
+_Generated from codebase analysis — see `.plans/17-claude-agent.md` for the full integration plan and `.docs/` for additional architecture documentation._

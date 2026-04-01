@@ -73,6 +73,7 @@ git push -f origin v0.0.13-zem0.1
 ### Release CI Pipeline
 
 After pushing a tag, GitHub Actions automatically:
+
 1. **Preflight** — Validates git checkout, typecheck, lint, tests
 2. **Build** — Builds desktop app and CLI
 3. **Publish** — Publishes CLI to npm (if configured)
@@ -82,12 +83,12 @@ After pushing a tag, GitHub Actions automatically:
 
 ### Common Release Issues & Fixes
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Symlink error: "File name too long" | File stored as symlink in git | `git rm --cached FILE && git add FILE && git commit` |
-| TypeScript error | Type mismatch not caught locally | Fix type, re-validate with `bun run typecheck` |
-| Lint errors | Linting issues | Run `bun lint` and fix, or add `// oxlint-disable` comment with justification |
-| Test timeout | Hook-using component in incompatible test | Mark as `.todo()` and file issue for refactor |
+| Issue                               | Cause                                     | Fix                                                                           |
+| ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
+| Symlink error: "File name too long" | File stored as symlink in git             | `git rm --cached FILE && git add FILE && git commit`                          |
+| TypeScript error                    | Type mismatch not caught locally          | Fix type, re-validate with `bun run typecheck`                                |
+| Lint errors                         | Linting issues                            | Run `bun lint` and fix, or add `// oxlint-disable` comment with justification |
+| Test timeout                        | Hook-using component in incompatible test | Mark as `.todo()` and file issue for refactor                                 |
 
 ## Architecture Overview
 
@@ -119,6 +120,7 @@ Desktop (Electron) wraps web client via IPC bridge
 ### Server: Codex App Server Integration
 
 Codex sessions run as `codex app-server` (JSON-RPC over stdio) per provider session:
+
 - `codexAppServerManager.ts` — session startup/resume, turn lifecycle
 - `providerManager.ts` — provider dispatch and thread event logging
 - `wsServer.ts` — routes `NativeApi` methods over WebSocket
@@ -145,11 +147,11 @@ Claude sessions use `@anthropic-ai/claude-agent-sdk`. Provider dispatch mirrors 
 
 ### Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `T3CODE_HOME` | Config directory (default: `~/.t3`) |
-| `T3CODE_PORT` | Server port |
-| `T3CODE_AUTH_TOKEN` | API auth token |
-| `T3CODE_NO_BROWSER` | Skip opening browser on start |
+| Variable               | Purpose                              |
+| ---------------------- | ------------------------------------ |
+| `T3CODE_HOME`          | Config directory (default: `~/.t3`)  |
+| `T3CODE_PORT`          | Server port                          |
+| `T3CODE_AUTH_TOKEN`    | API auth token                       |
+| `T3CODE_NO_BROWSER`    | Skip opening browser on start        |
 | `T3CODE_LOG_WS_EVENTS` | Enable WebSocket event debug logging |
-| `VITE_WS_URL` | WebSocket server URL (web build) |
+| `VITE_WS_URL`          | WebSocket server URL (web build)     |
