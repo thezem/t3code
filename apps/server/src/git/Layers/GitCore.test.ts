@@ -804,6 +804,10 @@ it.layer(TestLayer)("git integration", (it) => {
           branch: `${remoteName}/${featureBranch}`,
         });
 
+        // Allow the background upstream-refresh fiber (forkDetach) to finish
+        // before the scoped temp dirs are removed, avoiding ENOTEMPTY on cleanup.
+        yield* Effect.sleep("200 millis");
+
         expect(yield* git(source, ["branch", "--show-current"])).toBe("upstream/feature");
       }),
     );
