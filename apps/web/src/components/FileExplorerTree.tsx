@@ -67,9 +67,7 @@ export const FileExplorerTree = memo(function FileExplorerTree({
             </span>
           </button>
           {isExpanded && (
-            <div>
-              {node.children.map((childNode) => renderTreeNode(childNode, depth + 1))}
-            </div>
+            <div>{node.children.map((childNode) => renderTreeNode(childNode, depth + 1))}</div>
           )}
         </div>
       );
