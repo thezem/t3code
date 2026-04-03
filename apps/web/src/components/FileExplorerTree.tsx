@@ -33,7 +33,7 @@ export const FileExplorerTree = memo(function FileExplorerTree({
   );
 
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {
-    const leftPadding = 8 + depth * 14;
+    const leftPadding = 8 + depth * 16;
 
     if (node.kind === "directory") {
       const isExpanded = expandedDirectories[node.path] ?? false;
@@ -41,7 +41,7 @@ export const FileExplorerTree = memo(function FileExplorerTree({
         <div key={`dir:${node.path}`}>
           <button
             type="button"
-            className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
+            className="group flex w-full items-center gap-1 py-[3px] pr-2 text-left hover:bg-accent/50"
             style={{ paddingLeft: `${leftPadding}px` }}
             onClick={() => {
               toggleDirectory(node.path);
@@ -53,21 +53,21 @@ export const FileExplorerTree = memo(function FileExplorerTree({
             <ChevronRightIcon
               aria-hidden="true"
               className={cn(
-                "size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:text-foreground/80",
+                "size-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-100 group-hover:text-foreground/70",
                 isExpanded && "rotate-90",
               )}
             />
             {isExpanded ? (
-              <FolderIcon className="size-3.5 shrink-0 text-muted-foreground/75" />
+              <FolderIcon className="size-4 shrink-0 text-muted-foreground/80" />
             ) : (
-              <FolderClosedIcon className="size-3.5 shrink-0 text-muted-foreground/75" />
+              <FolderClosedIcon className="size-4 shrink-0 text-muted-foreground/80" />
             )}
-            <span className="truncate font-mono text-[11px] text-muted-foreground/90 group-hover:text-foreground/90">
+            <span className="truncate text-[13px] text-foreground/80 group-hover:text-foreground">
               {node.name}
             </span>
           </button>
           {isExpanded && (
-            <div className="space-y-0.5">
+            <div>
               {node.children.map((childNode) => renderTreeNode(childNode, depth + 1))}
             </div>
           )}
@@ -78,7 +78,7 @@ export const FileExplorerTree = memo(function FileExplorerTree({
     return (
       <div
         key={`file:${node.path}`}
-        className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 hover:bg-background/80"
+        className="group flex w-full items-center gap-1 py-[3px] pr-2 hover:bg-accent/50"
         style={{ paddingLeft: `${leftPadding}px` }}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -92,9 +92,9 @@ export const FileExplorerTree = memo(function FileExplorerTree({
             pathValue={node.path}
             kind="file"
             theme={resolvedTheme}
-            className="size-3.5 text-muted-foreground/70"
+            className="size-4 shrink-0 text-muted-foreground/70"
           />
-          <span className="truncate font-mono text-[11px] text-muted-foreground/80 group-hover:text-foreground/90">
+          <span className="truncate text-[13px] text-foreground/70 group-hover:text-foreground">
             {node.name}
           </span>
         </button>
@@ -114,5 +114,5 @@ export const FileExplorerTree = memo(function FileExplorerTree({
     );
   };
 
-  return <div className="space-y-0.5">{nodes.map((node) => renderTreeNode(node, 0))}</div>;
+  return <div>{nodes.map((node) => renderTreeNode(node, 0))}</div>;
 });

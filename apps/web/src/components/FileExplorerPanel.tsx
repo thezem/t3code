@@ -68,9 +68,9 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
       </div>
 
       {/* Tree */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         {isLoading && (
-          <div className="space-y-1 px-2 pt-2">
+          <div className="space-y-1 px-4 pt-2">
             {Array.from({ length: 8 }, (_, i) => `skeleton-loading-${i}`).map((key, i) => (
               <div
                 key={key}
