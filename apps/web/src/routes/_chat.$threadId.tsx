@@ -3,6 +3,7 @@ import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/reac
 import { Suspense, lazy, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import ChatView from "../components/ChatView";
+import { FileExplorerPanel } from "../components/FileExplorerPanel";
 import { FileViewerPanel } from "../components/FileViewerPanel";
 import { useFileViewerStore } from "../fileViewerStore";
 import { DiffWorkerPoolProvider } from "../components/DiffWorkerPoolProvider";
@@ -36,6 +37,10 @@ const FILE_VIEWER_DEFAULT_WIDTH = 420;
 const FILE_VIEWER_MIN_WIDTH = 280;
 const FILE_VIEWER_MAX_WIDTH_VW_RATIO = 0.5;
 const FILE_VIEWER_WIDTH_STORAGE_KEY = "chat_file_viewer_width";
+const FILE_EXPLORER_DEFAULT_WIDTH = 320;
+const FILE_EXPLORER_MIN_WIDTH = 260;
+const FILE_EXPLORER_MAX_WIDTH_VW_RATIO = 0.4;
+const FILE_EXPLORER_WIDTH_STORAGE_KEY = "chat_file_explorer_width";
 
 const DiffPanelSheet = (props: {
   children: ReactNode;
@@ -259,6 +264,131 @@ const FileViewerResizablePanel = () => {
   );
 };
 
+const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
+  const { threadId } = props;
+  const projects = useStore((store) => store.projects);
+  const thread = useStore((store) => store.threads.find((entry) => entry.id === threadId) ?? null);
+  const draftThread = useComposerDraftStore(
+    (store) => store.draftThreadsByThreadId[threadId] ?? null,
+  );
+  const openFile = useFileViewerStore((store) => store.openFile);
+  const appendMentionToPrompt = useComposerDraftStore((store) => store.appendMentionToPrompt);
+  const [width, setWidth] = useState(
+    () =>
+      getLocalStorageItem(FILE_EXPLORER_WIDTH_STORAGE_KEY, Schema.Finite) ??
+      FILE_EXPLORER_DEFAULT_WIDTH,
+  );
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    currentWidth: number;
+  } | null>(null);
+  const activeProjectId = thread?.projectId ?? draftThread?.projectId ?? null;
+  const activeProjectCwd = projects.find((project) => project.id === activeProjectId)?.cwd ?? null;
+
+  const handleFileClick = useCallback(
+    (relativePath: string) => {
+      if (activeProjectCwd) {
+        openFile(activeProjectCwd, relativePath);
+      }
+    },
+    [activeProjectCwd, openFile],
+  );
+
+  const handleMentionFile = useCallback(
+    (relativePath: string) => {
+      appendMentionToPrompt(threadId, relativePath);
+    },
+    [appendMentionToPrompt, threadId],
+  );
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const outer = outerRef.current;
+    if (!outer) return;
+    const currentWidth = outer.getBoundingClientRect().width;
+    outer.style.transitionDuration = "0ms";
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startWidth: currentWidth,
+      currentWidth,
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const delta = drag.startX - e.clientX;
+    const maxWidth = window.innerWidth * FILE_EXPLORER_MAX_WIDTH_VW_RATIO;
+    const nextWidth = Math.max(
+      FILE_EXPLORER_MIN_WIDTH,
+      Math.min(maxWidth, drag.startWidth + delta),
+    );
+    drag.currentWidth = nextWidth;
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (outer) outer.style.width = `${nextWidth}px`;
+    if (inner) {
+      inner.style.width = `${nextWidth}px`;
+      inner.style.minWidth = `${nextWidth}px`;
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    const finalWidth = drag.currentWidth;
+    dragRef.current = null;
+    const outer = outerRef.current;
+    if (outer) outer.style.transitionDuration = "";
+    setWidth(finalWidth);
+    setLocalStorageItem(FILE_EXPLORER_WIDTH_STORAGE_KEY, finalWidth, Schema.Finite);
+    document.body.style.removeProperty("cursor");
+    document.body.style.removeProperty("user-select");
+  }, []);
+
+  return (
+    <div
+      ref={outerRef}
+      className="relative flex h-dvh flex-none overflow-hidden border-l border-border bg-card text-foreground transition-[width] duration-200 ease-linear"
+      style={{ width }}
+    >
+      <div ref={innerRef} className="h-full" style={{ width, minWidth: width }}>
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="border-b border-border px-3 py-2">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+              Files
+            </span>
+          </div>
+          <FileExplorerPanel
+            cwd={activeProjectCwd}
+            onFileClick={handleFileClick}
+            onMentionFile={handleMentionFile}
+          />
+        </div>
+      </div>
+      <div
+        className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize hover:bg-border/60 transition-colors"
+        style={{ touchAction: "none" }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      />
+    </div>
+  );
+};
+
 function ChatThreadRouteView() {
   const bootstrapComplete = useStore((store) => store.bootstrapComplete);
   const navigate = useNavigate();
@@ -320,9 +450,11 @@ function ChatThreadRouteView() {
   if (!shouldUseDiffSheet) {
     return (
       <>
+        <FileViewerResizablePanel />
         <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
           <ChatView threadId={threadId} />
         </SidebarInset>
+        <FileExplorerResizablePanel threadId={threadId} />
         <DiffPanelInlineSidebar
           diffOpen={diffOpen}
           onCloseDiff={closeDiff}
@@ -339,6 +471,7 @@ function ChatThreadRouteView() {
       <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
         <ChatView threadId={threadId} />
       </SidebarInset>
+      <FileExplorerResizablePanel threadId={threadId} />
       <DiffPanelSheet diffOpen={diffOpen} onCloseDiff={closeDiff}>
         {shouldRenderDiffContent ? <LazyDiffPanel mode="sheet" /> : null}
       </DiffPanelSheet>

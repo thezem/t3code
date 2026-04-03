@@ -1,12 +1,9 @@
 import {
   ArchiveIcon,
-  ArrowLeftIcon,
   ArrowUpDownIcon,
   ChevronRightIcon,
-  FilesIcon,
   FolderIcon,
   GitPullRequestIcon,
-  MessagesSquareIcon,
   PlusIcon,
   SettingsIcon,
   SquarePenIcon,
@@ -60,7 +57,7 @@ import {
 } from "@t3tools/contracts/settings";
 import { isElectron } from "../env";
 import { APP_STAGE_LABEL, APP_VERSION } from "../branding";
-import { cn, isLinuxPlatform, isMacPlatform, newCommandId, newProjectId } from "../lib/utils";
+import { isLinuxPlatform, isMacPlatform, newCommandId, newProjectId } from "../lib/utils";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { useStore } from "../store";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminalStateStore";
@@ -130,15 +127,10 @@ import {
 } from "./Sidebar.logic";
 import { SidebarUpdatePill } from "./sidebar/SidebarUpdatePill";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
-import * as Schema from "effect/Schema";
-import { useLocalStorage } from "../hooks/useLocalStorage";
-import { FileExplorerPanel } from "./FileExplorerPanel";
-import { useFileViewerStore } from "../fileViewerStore";
 import { useSettings, useUpdateSettings } from "~/hooks/useSettings";
 import { useServerKeybindings } from "../rpc/serverState";
 import { useSidebarThreadSummaryById } from "../storeSelectors";
 import type { Project } from "../types";
-const SIDEBAR_TAB_SCHEMA = Schema.Union([Schema.Literal("threads"), Schema.Literal("files")]);
 const THREAD_PREVIEW_LIMIT = 6;
 const SIDEBAR_SORT_LABELS: Record<SidebarProjectSortOrder, string> = {
   updated_at: "Last user message",
@@ -707,35 +699,6 @@ export default function Sidebar() {
     select: (params) => (params.threadId ? ThreadId.makeUnsafe(params.threadId) : null),
   });
   const keybindings = useServerKeybindings();
-  const [sidebarTab, setSidebarTab] = useLocalStorage(
-    "t3code:sidebar-tab",
-    "threads" as "threads" | "files",
-    SIDEBAR_TAB_SCHEMA,
-  );
-  const activeProjectCwd =
-    projects.find((p) => p.id === activeThread?.projectId)?.cwd ?? projects[0]?.cwd ?? null;
-
-  const openFile = useFileViewerStore((s) => s.openFile);
-
-  const appendMentionToPrompt = useComposerDraftStore((s) => s.appendMentionToPrompt);
-
-  const handleFileClick = useCallback(
-    (relativePath: string) => {
-      if (activeProjectCwd) {
-        openFile(activeProjectCwd, relativePath);
-      }
-    },
-    [activeProjectCwd, openFile],
-  );
-
-  const handleMentionFile = useCallback(
-    (relativePath: string) => {
-      if (routeThreadId) {
-        appendMentionToPrompt(routeThreadId, relativePath);
-      }
-    },
-    [routeThreadId, appendMentionToPrompt],
-  );
   const [addingProject, setAddingProject] = useState(false);
   const [newCwd, setNewCwd] = useState("");
   const [isPickingFolder, setIsPickingFolder] = useState(false);
@@ -2040,288 +2003,190 @@ export default function Sidebar() {
           {wordmark}
         </SidebarHeader>
       )}
-
-      <div className="flex min-h-0 flex-1">
-        <div className="flex w-11 shrink-0 flex-col items-center border-r border-border/60 py-1">
-          <div className="flex flex-col items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label="Threads"
-                    className={cn(
-                      "flex size-9 items-center justify-center rounded-md transition-colors",
-                      !isOnSettings && sidebarTab === "threads"
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => {
-                      setSidebarTab("threads");
-                      if (isOnSettings) {
-                        void navigate({ to: "/" });
-                      }
+      {isOnSettings ? (
+        <SettingsSidebarNav pathname={pathname} />
+      ) : (
+        <>
+          <SidebarContent className="gap-0">
+            {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
+              <SidebarGroup className="px-2 pt-2 pb-0">
+                <Alert variant="warning" className="rounded-2xl border-warning/40 bg-warning/8">
+                  <TriangleAlertIcon />
+                  <AlertTitle>Intel build on Apple Silicon</AlertTitle>
+                  <AlertDescription>{arm64IntelBuildWarningDescription}</AlertDescription>
+                  {desktopUpdateButtonAction !== "none" ? (
+                    <AlertAction>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        disabled={desktopUpdateButtonDisabled}
+                        onClick={handleDesktopUpdateButtonClick}
+                      >
+                        {desktopUpdateButtonAction === "download"
+                          ? "Download ARM build"
+                          : "Install ARM build"}
+                      </Button>
+                    </AlertAction>
+                  ) : null}
+                </Alert>
+              </SidebarGroup>
+            ) : null}
+            <SidebarGroup className="px-2 py-2">
+              <div className="mb-1 flex items-center justify-between pl-2 pr-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Projects
+                </span>
+                <div className="flex items-center gap-1">
+                  <ProjectSortMenu
+                    projectSortOrder={appSettings.sidebarProjectSortOrder}
+                    threadSortOrder={appSettings.sidebarThreadSortOrder}
+                    onProjectSortOrderChange={(sortOrder) => {
+                      updateSettings({ sidebarProjectSortOrder: sortOrder });
                     }}
-                  >
-                    <MessagesSquareIcon className="size-4" />
-                  </button>
-                }
-              />
-              <TooltipPopup side="right">Threads</TooltipPopup>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label="Files"
-                    className={cn(
-                      "flex size-9 items-center justify-center rounded-md transition-colors",
-                      !isOnSettings && sidebarTab === "files"
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => setSidebarTab("files")}
-                  >
-                    <FilesIcon className="size-4" />
-                  </button>
-                }
-              />
-              <TooltipPopup side="right">Files</TooltipPopup>
-            </Tooltip>
-          </div>
-          <div className="flex-1" />
-          <div className="pb-1">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label={isOnSettings ? "Back" : "Settings"}
-                    className={cn(
-                      "flex size-9 items-center justify-center rounded-md transition-colors",
-                      isOnSettings
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={
-                      isOnSettings
-                        ? () => window.history.back()
-                        : () => void navigate({ to: "/settings" })
-                    }
-                  >
-                    {isOnSettings ? (
-                      <ArrowLeftIcon className="size-4" />
-                    ) : (
-                      <SettingsIcon className="size-4" />
-                    )}
-                  </button>
-                }
-              />
-              <TooltipPopup side="right">{isOnSettings ? "Back" : "Settings"}</TooltipPopup>
-            </Tooltip>
-          </div>
-        </div>
-        <div className="min-w-0 flex-1 overflow-hidden flex flex-col">
-          {isOnSettings ? (
-            <SettingsSidebarNav pathname={pathname} />
-          ) : sidebarTab === "files" ? (
-            <SidebarContent className="gap-0">
-              <FileExplorerPanel
-                cwd={activeProjectCwd}
-                onFileClick={handleFileClick}
-                onMentionFile={handleMentionFile}
-              />
-            </SidebarContent>
-          ) : (
-            <>
-              <SidebarContent className="gap-0">
-                {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
-                  <SidebarGroup className="px-2 pt-2 pb-0">
-                    <Alert variant="warning" className="rounded-2xl border-warning/40 bg-warning/8">
-                      <TriangleAlertIcon />
-                      <AlertTitle>Intel build on Apple Silicon</AlertTitle>
-                      <AlertDescription>{arm64IntelBuildWarningDescription}</AlertDescription>
-                      {desktopUpdateButtonAction !== "none" ? (
-                        <AlertAction>
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            disabled={desktopUpdateButtonDisabled}
-                            onClick={handleDesktopUpdateButtonClick}
-                          >
-                            {desktopUpdateButtonAction === "download"
-                              ? "Download ARM build"
-                              : "Install ARM build"}
-                          </Button>
-                        </AlertAction>
-                      ) : null}
-                    </Alert>
-                  </SidebarGroup>
-                ) : null}
-                <SidebarGroup className="px-2 py-2">
-                  <div className="mb-1 flex items-center justify-between pl-2 pr-1.5">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                      Projects
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <ProjectSortMenu
-                        projectSortOrder={appSettings.sidebarProjectSortOrder}
-                        threadSortOrder={appSettings.sidebarThreadSortOrder}
-                        onProjectSortOrderChange={(sortOrder) => {
-                          updateSettings({ sidebarProjectSortOrder: sortOrder });
-                        }}
-                        onThreadSortOrderChange={(sortOrder) => {
-                          updateSettings({ sidebarThreadSortOrder: sortOrder });
-                        }}
-                      />
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <button
-                              type="button"
-                              aria-label={
-                                shouldShowProjectPathEntry ? "Cancel add project" : "Add project"
-                              }
-                              aria-pressed={shouldShowProjectPathEntry}
-                              className="inline-flex size-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
-                              onClick={handleStartAddProject}
-                            />
+                    onThreadSortOrderChange={(sortOrder) => {
+                      updateSettings({ sidebarThreadSortOrder: sortOrder });
+                    }}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-label={
+                            shouldShowProjectPathEntry ? "Cancel add project" : "Add project"
                           }
-                        >
-                          <PlusIcon
-                            className={`size-3.5 transition-transform duration-150 ${
-                              shouldShowProjectPathEntry ? "rotate-45" : "rotate-0"
-                            }`}
-                          />
-                        </TooltipTrigger>
-                        <TooltipPopup side="right">
-                          {shouldShowProjectPathEntry ? "Cancel add project" : "Add project"}
-                        </TooltipPopup>
-                      </Tooltip>
-                    </div>
-                  </div>
-                  {shouldShowProjectPathEntry && (
-                    <div className="mb-2 px-1">
-                      {isElectron && (
-                        <button
-                          type="button"
-                          className="mb-1.5 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary py-1.5 text-xs text-foreground/80 transition-colors duration-150 hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => void handlePickFolder()}
-                          disabled={isPickingFolder || isAddingProject}
-                        >
-                          <FolderIcon className="size-3.5" />
-                          {isPickingFolder ? "Picking folder..." : "Browse for folder"}
-                        </button>
-                      )}
-                      <div className="flex gap-1.5">
-                        <input
-                          ref={addProjectInputRef}
-                          className={`min-w-0 flex-1 rounded-md border bg-secondary px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none ${
-                            addProjectError
-                              ? "border-red-500/70 focus:border-red-500"
-                              : "border-border focus:border-ring"
-                          }`}
-                          placeholder="/path/to/project"
-                          value={newCwd}
-                          onChange={(event) => {
-                            setNewCwd(event.target.value);
-                            setAddProjectError(null);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") handleAddProject();
-                            if (event.key === "Escape") {
-                              setAddingProject(false);
-                              setAddProjectError(null);
-                            }
-                          }}
-                          autoFocus
+                          aria-pressed={shouldShowProjectPathEntry}
+                          className="inline-flex size-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+                          onClick={handleStartAddProject}
                         />
-                        <button
-                          type="button"
-                          className="shrink-0 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:opacity-60"
-                          onClick={handleAddProject}
-                          disabled={!canAddProject}
-                        >
-                          {isAddingProject ? "Adding..." : "Add"}
-                        </button>
-                      </div>
-                      {addProjectError && (
-                        <p className="mt-1 px-0.5 text-[11px] leading-tight text-red-400">
-                          {addProjectError}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {isManualProjectSorting ? (
-                    <DndContext
-                      sensors={projectDnDSensors}
-                      collisionDetection={projectCollisionDetection}
-                      modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
-                      onDragStart={handleProjectDragStart}
-                      onDragEnd={handleProjectDragEnd}
-                      onDragCancel={handleProjectDragCancel}
+                      }
                     >
-                      <SidebarMenu>
-                        <SortableContext
-                          items={renderedProjects.map(
-                            (renderedProject) => renderedProject.project.id,
-                          )}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {renderedProjects.map((renderedProject) => (
-                            <SortableProjectItem
-                              key={renderedProject.project.id}
-                              projectId={renderedProject.project.id}
-                            >
-                              {(dragHandleProps) =>
-                                renderProjectItem(renderedProject, dragHandleProps)
-                              }
-                            </SortableProjectItem>
-                          ))}
-                        </SortableContext>
-                      </SidebarMenu>
-                    </DndContext>
-                  ) : (
-                    <SidebarMenu ref={attachProjectListAutoAnimateRef}>
+                      <PlusIcon
+                        className={`size-3.5 transition-transform duration-150 ${
+                          shouldShowProjectPathEntry ? "rotate-45" : "rotate-0"
+                        }`}
+                      />
+                    </TooltipTrigger>
+                    <TooltipPopup side="right">
+                      {shouldShowProjectPathEntry ? "Cancel add project" : "Add project"}
+                    </TooltipPopup>
+                  </Tooltip>
+                </div>
+              </div>
+              {shouldShowProjectPathEntry && (
+                <div className="mb-2 px-1">
+                  {isElectron && (
+                    <button
+                      type="button"
+                      className="mb-1.5 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary py-1.5 text-xs text-foreground/80 transition-colors duration-150 hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => void handlePickFolder()}
+                      disabled={isPickingFolder || isAddingProject}
+                    >
+                      <FolderIcon className="size-3.5" />
+                      {isPickingFolder ? "Picking folder..." : "Browse for folder"}
+                    </button>
+                  )}
+                  <div className="flex gap-1.5">
+                    <input
+                      ref={addProjectInputRef}
+                      className={`min-w-0 flex-1 rounded-md border bg-secondary px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none ${
+                        addProjectError
+                          ? "border-red-500/70 focus:border-red-500"
+                          : "border-border focus:border-ring"
+                      }`}
+                      placeholder="/path/to/project"
+                      value={newCwd}
+                      onChange={(event) => {
+                        setNewCwd(event.target.value);
+                        setAddProjectError(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") handleAddProject();
+                        if (event.key === "Escape") {
+                          setAddingProject(false);
+                          setAddProjectError(null);
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary/90 disabled:opacity-60"
+                      onClick={handleAddProject}
+                      disabled={!canAddProject}
+                    >
+                      {isAddingProject ? "Adding..." : "Add"}
+                    </button>
+                  </div>
+                  {addProjectError && (
+                    <p className="mt-1 px-0.5 text-[11px] leading-tight text-red-400">
+                      {addProjectError}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isManualProjectSorting ? (
+                <DndContext
+                  sensors={projectDnDSensors}
+                  collisionDetection={projectCollisionDetection}
+                  modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
+                  onDragStart={handleProjectDragStart}
+                  onDragEnd={handleProjectDragEnd}
+                  onDragCancel={handleProjectDragCancel}
+                >
+                  <SidebarMenu>
+                    <SortableContext
+                      items={renderedProjects.map((renderedProject) => renderedProject.project.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
                       {renderedProjects.map((renderedProject) => (
-                        <SidebarMenuItem key={renderedProject.project.id} className="rounded-md">
-                          {renderProjectItem(renderedProject, null)}
-                        </SidebarMenuItem>
+                        <SortableProjectItem
+                          key={renderedProject.project.id}
+                          projectId={renderedProject.project.id}
+                        >
+                          {(dragHandleProps) => renderProjectItem(renderedProject, dragHandleProps)}
+                        </SortableProjectItem>
                       ))}
-                    </SidebarMenu>
-                  )}
-
-                  {projects.length === 0 && !shouldShowProjectPathEntry && (
-                    <div className="px-2 pt-4 text-center text-xs text-muted-foreground/60">
-                      No projects yet
-                    </div>
-                  )}
-                </SidebarGroup>
-              </SidebarContent>
-
-              <SidebarSeparator />
-              <SidebarFooter className="p-2">
-                <SidebarUpdatePill />
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      size="sm"
-                      className="gap-2 px-2 py-1.5 text-muted-foreground/70 hover:bg-accent hover:text-foreground"
-                      onClick={() => void navigate({ to: "/settings" })}
-                    >
-                      <SettingsIcon className="size-3.5" />
-                      <span className="text-xs">Settings</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                    </SortableContext>
+                  </SidebarMenu>
+                </DndContext>
+              ) : (
+                <SidebarMenu ref={attachProjectListAutoAnimateRef}>
+                  {renderedProjects.map((renderedProject) => (
+                    <SidebarMenuItem key={renderedProject.project.id} className="rounded-md">
+                      {renderProjectItem(renderedProject, null)}
+                    </SidebarMenuItem>
+                  ))}
                 </SidebarMenu>
-              </SidebarFooter>
-            </>
-          )}
-        </div>
-      </div>
+              )}
+
+              {projects.length === 0 && !shouldShowProjectPathEntry && (
+                <div className="px-2 pt-4 text-center text-xs text-muted-foreground/60">
+                  No projects yet
+                </div>
+              )}
+            </SidebarGroup>
+          </SidebarContent>
+
+          <SidebarSeparator />
+          <SidebarFooter className="p-2">
+            <SidebarUpdatePill />
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  size="sm"
+                  className="gap-2 px-2 py-1.5 text-muted-foreground/70 hover:bg-accent hover:text-foreground"
+                  onClick={() => void navigate({ to: "/settings" })}
+                >
+                  <SettingsIcon className="size-3.5" />
+                  <span className="text-xs">Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </>
+      )}
     </>
   );
 }
