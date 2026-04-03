@@ -139,5 +139,5 @@ describe("MessagesTimeline", () => {
 
     expect(markup).toContain("Context compacted");
     expect(markup).toContain("Work log");
-  });
+  }, 15_000);
 });

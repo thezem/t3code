@@ -22,18 +22,18 @@ Codex Process  (`codex app-server`)
 
 ## Key Files
 
-| File | Role |
-|------|------|
-| `apps/server/src/codexAppServerManager.ts` | Spawns and manages the Codex child process; sends/receives raw JSON-RPC |
-| `apps/server/src/provider/Layers/CodexAdapter.ts` | Wraps the manager; maps Codex-native `ProviderEvent` → canonical `ProviderRuntimeEvent` |
-| `apps/server/src/provider/Layers/ProviderService.ts` | Cross-provider router; publishes runtime events via PubSub |
-| `apps/server/src/ws.ts` | Effect RPC server over WebSocket; routes client calls to provider services |
-| `packages/contracts/src/provider.ts` | Native `ProviderEvent` schemas |
-| `packages/contracts/src/providerRuntime.ts` | Canonical `ProviderRuntimeEvent` schemas (40+ event types) |
-| `packages/contracts/src/rpc.ts` | WebSocket RPC method definitions (`WsRpcGroup`) |
-| `apps/server/src/provider/codexAppServer.ts` | Utilities: initialize params, process kill, account probe |
-| `apps/server/src/provider/codexAccount.ts` | Account snapshot parsing, model filtering by subscription tier |
-| `apps/server/src/provider/codexCliVersion.ts` | Semver parsing, minimum version enforcement (≥ 0.37.0) |
+| File                                                 | Role                                                                                    |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `apps/server/src/codexAppServerManager.ts`           | Spawns and manages the Codex child process; sends/receives raw JSON-RPC                 |
+| `apps/server/src/provider/Layers/CodexAdapter.ts`    | Wraps the manager; maps Codex-native `ProviderEvent` → canonical `ProviderRuntimeEvent` |
+| `apps/server/src/provider/Layers/ProviderService.ts` | Cross-provider router; publishes runtime events via PubSub                              |
+| `apps/server/src/ws.ts`                              | Effect RPC server over WebSocket; routes client calls to provider services              |
+| `packages/contracts/src/provider.ts`                 | Native `ProviderEvent` schemas                                                          |
+| `packages/contracts/src/providerRuntime.ts`          | Canonical `ProviderRuntimeEvent` schemas (40+ event types)                              |
+| `packages/contracts/src/rpc.ts`                      | WebSocket RPC method definitions (`WsRpcGroup`)                                         |
+| `apps/server/src/provider/codexAppServer.ts`         | Utilities: initialize params, process kill, account probe                               |
+| `apps/server/src/provider/codexAccount.ts`           | Account snapshot parsing, model filtering by subscription tier                          |
+| `apps/server/src/provider/codexCliVersion.ts`        | Semver parsing, minimum version enforcement (≥ 0.37.0)                                  |
 
 ---
 
@@ -119,23 +119,23 @@ User-input requests follow the same pattern via `item/tool/requestUserInput` / `
 
 `CodexAdapter` subscribes to the manager's `EventEmitter` and normalises every `ProviderEvent` into a canonical `ProviderRuntimeEvent` through `mapToRuntimeEvents()`:
 
-| Codex method | Canonical event type | Notes |
-|---|---|---|
-| `turn/started` | `turn.started` | |
-| `turn/completed` | `turn.completed` | |
-| `item/started` | `item.started` | |
-| `item/completed` | `item.completed` | |
-| `item/agentMessage/delta` | `content.delta` | `streamKind: "assistant_text"` |
-| `item/reasoning/textDelta` | `content.delta` | `streamKind: "reasoning_text"` |
-| `item/commandExecution/outputDelta` | `content.delta` | `streamKind: "command_output"` |
-| `item/fileChange/outputDelta` | `content.delta` | `streamKind: "file_change_output"` |
-| `item/commandExecution/requestApproval` | `request.opened` | `requestType: "command_execution_approval"` |
-| `item/fileChange/requestApproval` | `request.opened` | `requestType: "file_change_approval"` |
-| `item/fileRead/requestApproval` | `request.opened` | `requestType: "file_read_approval"` |
-| `item/tool/requestUserInput` | `user-input.requested` | includes questions array |
-| `thread/started` | `thread.started` | |
-| `session/connecting` | `session.state.changed` | `state: "starting"` |
-| `session/ready` | `session.state.changed` | `state: "ready"` |
+| Codex method                            | Canonical event type    | Notes                                       |
+| --------------------------------------- | ----------------------- | ------------------------------------------- |
+| `turn/started`                          | `turn.started`          |                                             |
+| `turn/completed`                        | `turn.completed`        |                                             |
+| `item/started`                          | `item.started`          |                                             |
+| `item/completed`                        | `item.completed`        |                                             |
+| `item/agentMessage/delta`               | `content.delta`         | `streamKind: "assistant_text"`              |
+| `item/reasoning/textDelta`              | `content.delta`         | `streamKind: "reasoning_text"`              |
+| `item/commandExecution/outputDelta`     | `content.delta`         | `streamKind: "command_output"`              |
+| `item/fileChange/outputDelta`           | `content.delta`         | `streamKind: "file_change_output"`          |
+| `item/commandExecution/requestApproval` | `request.opened`        | `requestType: "command_execution_approval"` |
+| `item/fileChange/requestApproval`       | `request.opened`        | `requestType: "file_change_approval"`       |
+| `item/fileRead/requestApproval`         | `request.opened`        | `requestType: "file_read_approval"`         |
+| `item/tool/requestUserInput`            | `user-input.requested`  | includes questions array                    |
+| `thread/started`                        | `thread.started`        |                                             |
+| `session/connecting`                    | `session.state.changed` | `state: "starting"`                         |
+| `session/ready`                         | `session.state.changed` | `state: "ready"`                            |
 
 The adapter also handles attachment resolution (base64-encodes local image files before sending to Codex).
 
@@ -194,6 +194,7 @@ PubSub  →  WebSocket push  →  Browser
 ## Session Persistence & Resume
 
 `ProviderSessionDirectory` persists:
+
 - `threadId` — the Codex thread identifier (`t-...`)
 - `resumeCursor` — opaque cursor from the last completed turn, passed to `thread/resume` on reconnect
 - Serialized session state and event log
@@ -219,14 +220,14 @@ interface ProviderEvent {
   provider: "codex";
   threadId: ThreadId;
   createdAt: IsoDateTime;
-  method: string;           // e.g. "item/agentMessage/delta"
+  method: string; // e.g. "item/agentMessage/delta"
   message?: string;
   turnId?: TurnId;
   itemId?: ProviderItemId;
   requestId?: ApprovalRequestId;
   requestKind?: ProviderRequestKind;
   textDelta?: string;
-  payload?: unknown;        // raw Codex params
+  payload?: unknown; // raw Codex params
 }
 ```
 
@@ -236,9 +237,9 @@ All events share a common envelope:
 
 ```typescript
 interface ProviderRuntimeEventBase {
-  type: string;             // e.g. "content.delta"
+  type: string; // e.g. "content.delta"
   eventId: EventId;
-  provider: ProviderKind;   // "codex" | "claude"
+  provider: ProviderKind; // "codex" | "claude"
   threadId: ThreadId;
   createdAt: IsoDateTime;
   turnId?: TurnId;
