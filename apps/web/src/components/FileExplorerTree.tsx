@@ -1,54 +1,38 @@
 import { ChevronRightIcon, FolderIcon, FolderClosedIcon, PlusIcon } from "lucide-react";
-import { memo, useCallback } from "react";
+import { memo } from "react";
 import { cn } from "~/lib/utils";
 import { VscodeEntryIcon } from "./chat/VscodeEntryIcon";
-import { useFileExplorerExpanded } from "~/hooks/useFileExplorerExpanded";
 import type { FileTreeNode } from "~/lib/buildFileTree";
 
 interface FileExplorerTreeProps {
   nodes: FileTreeNode[];
-  cwd: string;
   resolvedTheme: "light" | "dark";
+  expandedDirectoryPaths: ReadonlySet<string>;
   onFileClick: (path: string) => void;
   onMentionFile: (path: string) => void;
-  onLazyLoadDirectory?: (path: string) => Promise<void>;
+  onToggleDirectory: (path: string, isExpanded: boolean) => void;
 }
 
 export const FileExplorerTree = memo(function FileExplorerTree({
   nodes,
-  cwd,
   resolvedTheme,
+  expandedDirectoryPaths,
   onFileClick,
   onMentionFile,
-  onLazyLoadDirectory,
+  onToggleDirectory,
 }: FileExplorerTreeProps) {
-  // Use hook for persisted expansion state
-  const { expanded: expandedDirectories, toggle } = useFileExplorerExpanded(cwd);
-
-  const toggleDirectory = useCallback(
-    (path: string) => {
-      toggle(path);
-    },
-    [toggle],
-  );
-
   const renderTreeNode = (node: FileTreeNode, depth: number): React.ReactNode => {
     const leftPadding = 8 + depth * 16;
 
     if (node.kind === "directory") {
-      const isExpanded = expandedDirectories[node.path] ?? false;
+      const isExpanded = expandedDirectoryPaths.has(node.path);
       return (
         <div key={`dir:${node.path}`}>
           <button
             type="button"
             className="group flex w-full items-center gap-1 py-[3px] pr-2 text-left hover:bg-accent/50"
             style={{ paddingLeft: `${leftPadding}px` }}
-            onClick={() => {
-              toggleDirectory(node.path);
-              if (!isExpanded && onLazyLoadDirectory) {
-                void onLazyLoadDirectory(node.path);
-              }
-            }}
+            onClick={() => onToggleDirectory(node.path, isExpanded)}
           >
             <ChevronRightIcon
               aria-hidden="true"

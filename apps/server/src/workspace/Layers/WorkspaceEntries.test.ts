@@ -62,7 +62,13 @@ const git = (cwd: string, args: ReadonlyArray<string>, env?: NodeJS.ProcessEnv) 
     return result.stdout.trim();
   });
 
-const searchWorkspaceEntries = (input: { cwd: string; query: string; limit: number }) =>
+const searchWorkspaceEntries = (input: {
+  cwd: string;
+  query: string;
+  limit: number;
+  rootPath?: string;
+  maxDepth?: number;
+}) =>
   Effect.gen(function* () {
     const workspaceEntries = yield* WorkspaceEntries;
     return yield* workspaceEntries.search(input);
@@ -140,6 +146,75 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
         expect(result.entries).toHaveLength(1);
         expect(result.truncated).toBe(true);
+      }),
+    );
+
+    it.effect("filters entries to a requested subtree", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-root-path-" });
+        yield* writeTextFile(cwd, "src/components/Composer.tsx");
+        yield* writeTextFile(cwd, "src/routes/index.tsx");
+        yield* writeTextFile(cwd, "docs/guide.md");
+
+        const result = yield* searchWorkspaceEntries({
+          cwd,
+          query: "",
+          limit: 100,
+          rootPath: "src/components",
+        });
+        const paths = result.entries.map((entry) => entry.path);
+
+        expect(paths).toContain("src/components");
+        expect(paths).toContain("src/components/Composer.tsx");
+        expect(paths).not.toContain("src");
+        expect(paths).not.toContain("src/routes");
+        expect(paths).not.toContain("docs");
+      }),
+    );
+
+    it.effect("limits empty-query results by relative maxDepth from workspace root", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-max-depth-root-" });
+        yield* writeTextFile(cwd, "src/components/forms/Input.tsx");
+        yield* writeTextFile(cwd, "src/index.ts");
+        yield* writeTextFile(cwd, "README.md");
+
+        const result = yield* searchWorkspaceEntries({
+          cwd,
+          query: "",
+          limit: 100,
+          maxDepth: 2,
+        });
+        const paths = result.entries.map((entry) => entry.path);
+
+        expect(paths).toContain("src");
+        expect(paths).toContain("src/components");
+        expect(paths).toContain("src/index.ts");
+        expect(paths).toContain("README.md");
+        expect(paths).not.toContain("src/components/forms");
+        expect(paths).not.toContain("src/components/forms/Input.tsx");
+      }),
+    );
+
+    it.effect("limits subtree results by relative maxDepth from the requested rootPath", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-max-depth-subtree-" });
+        yield* writeTextFile(cwd, "src/components/forms/Input.tsx");
+        yield* writeTextFile(cwd, "src/components/Button.tsx");
+
+        const result = yield* searchWorkspaceEntries({
+          cwd,
+          query: "",
+          limit: 100,
+          rootPath: "src/components",
+          maxDepth: 1,
+        });
+        const paths = result.entries.map((entry) => entry.path);
+
+        expect(paths).toContain("src/components");
+        expect(paths).toContain("src/components/Button.tsx");
+        expect(paths).toContain("src/components/forms");
+        expect(paths).not.toContain("src/components/forms/Input.tsx");
       }),
     );
 

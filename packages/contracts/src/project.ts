@@ -1,13 +1,17 @@
 import { Schema } from "effect";
 import { PositiveInt, TrimmedNonEmptyString } from "./baseSchemas";
 
-const PROJECT_SEARCH_ENTRIES_MAX_LIMIT = 200;
+const PROJECT_SEARCH_ENTRIES_MAX_LIMIT = 10_000;
+const PROJECT_SEARCH_ROOT_PATH_MAX_LENGTH = 1_024;
 const PROJECT_WRITE_FILE_PATH_MAX_LENGTH = 512;
 const PROJECT_READ_FILE_PATH_MAX_LENGTH = 512;
 
 export const ProjectSearchEntriesInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
   query: Schema.Trim.check(Schema.isMaxLength(256)),
+  rootPath: Schema.optional(
+    TrimmedNonEmptyString.check(Schema.isMaxLength(PROJECT_SEARCH_ROOT_PATH_MAX_LENGTH)),
+  ),
   limit: PositiveInt.check(Schema.isLessThanOrEqualTo(PROJECT_SEARCH_ENTRIES_MAX_LIMIT)),
   maxDepth: Schema.optional(PositiveInt),
 });

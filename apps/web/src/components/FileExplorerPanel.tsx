@@ -1,8 +1,14 @@
+import type { ProjectEntry } from "@t3tools/contracts";
 import { RefreshCwIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { projectSearchEntriesQueryOptions } from "~/lib/projectReactQuery";
-import { buildFileTree } from "~/lib/buildFileTree";
+import { useFileExplorerStore } from "~/fileExplorerStore";
+import {
+  directoryEntriesQueryOptions,
+  projectQueryKeys,
+  projectSearchEntriesQueryOptions,
+} from "~/lib/projectReactQuery";
+import { buildFileTree, mergeProjectEntries } from "~/lib/buildFileTree";
 import { FileExplorerTree } from "./FileExplorerTree";
 import { useTheme } from "~/hooks/useTheme";
 
@@ -12,29 +18,110 @@ interface FileExplorerPanelProps {
   onMentionFile: (relativePath: string) => void;
 }
 
-// Fetch all files - server already filters out node_modules and ignored dirs
-const FILE_EXPLORER_LIMIT = 200;
+const FILE_EXPLORER_LIMIT = 10_000;
+const FILE_EXPLORER_INITIAL_MAX_DEPTH = 3;
+const EMPTY_ENTRIES: ProjectEntry[] = [];
+const EMPTY_EXPANDED_PATHS: string[] = [];
 
 export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplorerPanelProps) {
   const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
+  const toggleDirectory = useFileExplorerStore((state) => state.toggleDirectory);
+  const expandedDirectoryPaths = useFileExplorerStore((state) =>
+    cwd ? (state.expandedDirs[cwd] ?? EMPTY_EXPANDED_PATHS) : EMPTY_EXPANDED_PATHS,
+  );
+  const [lazyEntries, setLazyEntries] = useState<ProjectEntry[]>([]);
+  const [loadingDirectories, setLoadingDirectories] = useState<Record<string, true>>({});
+  const [loadedDirectories, setLoadedDirectories] = useState<Record<string, true>>({});
 
   const queryOptions = projectSearchEntriesQueryOptions({
     cwd,
     query: "",
     limit: FILE_EXPLORER_LIMIT,
     enabled: cwd !== null,
+    maxDepth: FILE_EXPLORER_INITIAL_MAX_DEPTH,
   });
 
   const { data, isLoading, isError } = useQuery(queryOptions);
 
+  const allEntries = useMemo(
+    () => mergeProjectEntries(data?.entries ?? EMPTY_ENTRIES, lazyEntries),
+    [data?.entries, lazyEntries],
+  );
+
   const treeNodes = useMemo(() => {
-    if (!data?.entries) return [];
-    return buildFileTree(data.entries);
-  }, [data?.entries]);
+    if (allEntries.length === 0) return [];
+    return buildFileTree(allEntries);
+  }, [allEntries]);
+
+  const expandedDirectorySet = useMemo(
+    () => new Set(expandedDirectoryPaths),
+    [expandedDirectoryPaths],
+  );
+
+  useEffect(() => {
+    setLazyEntries([]);
+    setLoadingDirectories({});
+    setLoadedDirectories({});
+  }, [cwd]);
+
+  const handleToggleDirectory = useCallback(
+    (path: string, isExpanded: boolean) => {
+      if (!cwd) {
+        return;
+      }
+
+      toggleDirectory(cwd, path);
+
+      if (isExpanded || loadedDirectories[path] || loadingDirectories[path]) {
+        return;
+      }
+
+      setLoadingDirectories((current) => ({ ...current, [path]: true }));
+
+      void queryClient
+        .fetchQuery(
+          directoryEntriesQueryOptions({
+            cwd,
+            dirPath: path,
+            limit: FILE_EXPLORER_LIMIT,
+          }),
+        )
+        .then((result) => {
+          setLazyEntries((current) => mergeProjectEntries(current, result.entries));
+          setLoadedDirectories((current) => {
+            if (result.truncated) {
+              return { ...current, [path]: true };
+            }
+
+            const next = { ...current };
+            for (const entry of result.entries) {
+              if (entry.kind === "directory") {
+                next[entry.path] = true;
+              }
+            }
+            return next;
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to load directory entries:", error);
+        })
+        .finally(() => {
+          setLoadingDirectories((current) => {
+            const next = { ...current };
+            delete next[path];
+            return next;
+          });
+        });
+    },
+    [cwd, loadedDirectories, loadingDirectories, queryClient, toggleDirectory],
+  );
 
   const handleRefresh = () => {
-    void queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
+    setLazyEntries([]);
+    setLoadingDirectories({});
+    setLoadedDirectories({});
+    void queryClient.invalidateQueries({ queryKey: projectQueryKeys.all });
   };
 
   if (!cwd) {
@@ -93,10 +180,11 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
         {!isLoading && !isError && treeNodes.length > 0 && (
           <FileExplorerTree
             nodes={treeNodes}
-            cwd={cwd}
             resolvedTheme={resolvedTheme}
+            expandedDirectoryPaths={expandedDirectorySet}
             onFileClick={onFileClick}
             onMentionFile={onMentionFile}
+            onToggleDirectory={handleToggleDirectory}
           />
         )}
       </div>

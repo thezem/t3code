@@ -34,8 +34,13 @@ export function projectReadFileQueryOptions(input: {
 
 export const projectQueryKeys = {
   all: ["projects"] as const,
-  searchEntries: (cwd: string | null, query: string, limit: number) =>
-    ["projects", "search-entries", cwd, query, limit] as const,
+  searchEntries: (
+    cwd: string | null,
+    query: string,
+    limit: number,
+    maxDepth?: number,
+    rootPath?: string,
+  ) => ["projects", "search-entries", cwd, query, limit, maxDepth, rootPath] as const,
   directoryEntries: (cwd: string | null, dirPath: string, maxDepth?: number) =>
     ["projects", "directory-entries", cwd, dirPath, maxDepth] as const,
 };
@@ -50,6 +55,7 @@ const EMPTY_SEARCH_ENTRIES_RESULT: ProjectSearchEntriesResult = {
 export function projectSearchEntriesQueryOptions(input: {
   cwd: string | null;
   query: string;
+  rootPath?: string;
   enabled?: boolean;
   limit?: number;
   staleTime?: number;
@@ -57,7 +63,13 @@ export function projectSearchEntriesQueryOptions(input: {
 }) {
   const limit = input.limit ?? DEFAULT_SEARCH_ENTRIES_LIMIT;
   return queryOptions({
-    queryKey: projectQueryKeys.searchEntries(input.cwd, input.query, limit),
+    queryKey: projectQueryKeys.searchEntries(
+      input.cwd,
+      input.query,
+      limit,
+      input.maxDepth,
+      input.rootPath,
+    ),
     queryFn: async () => {
       const api = ensureNativeApi();
       if (!input.cwd) {
@@ -66,6 +78,7 @@ export function projectSearchEntriesQueryOptions(input: {
       return api.projects.searchEntries({
         cwd: input.cwd,
         query: input.query,
+        rootPath: input.rootPath,
         limit,
         maxDepth: input.maxDepth,
       });
@@ -95,7 +108,8 @@ export function directoryEntriesQueryOptions(input: {
       }
       return api.projects.searchEntries({
         cwd: input.cwd,
-        query: input.dirPath,
+        query: "",
+        rootPath: input.dirPath,
         limit,
         maxDepth: input.maxDepth,
       });

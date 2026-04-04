@@ -26,6 +26,10 @@ function compareByName(a: { name: string }, b: { name: string }): number {
   return a.name.localeCompare(b.name, undefined, SORT_LOCALE_OPTIONS);
 }
 
+function entryKey(entry: ProjectEntry): string {
+  return `${entry.kind}:${entry.path}`;
+}
+
 function compactDirectoryNode(node: FileTreeDirectoryNode): FileTreeDirectoryNode {
   const compactedChildren = node.children.map((child) =>
     child.kind === "directory" ? compactDirectoryNode(child) : child,
@@ -90,4 +94,18 @@ export function buildFileTree(entries: ReadonlyArray<ProjectEntry>): FileTreeNod
   }
 
   return buildChildren("");
+}
+
+export function mergeProjectEntries(
+  ...entryCollections: ReadonlyArray<ReadonlyArray<ProjectEntry>>
+): ProjectEntry[] {
+  const mergedEntries = new Map<string, ProjectEntry>();
+
+  for (const entries of entryCollections) {
+    for (const entry of entries) {
+      mergedEntries.set(entryKey(entry), entry);
+    }
+  }
+
+  return [...mergedEntries.values()];
 }

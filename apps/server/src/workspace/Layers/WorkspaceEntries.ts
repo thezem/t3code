@@ -81,6 +81,49 @@ function normalizeQuery(input: string): string {
     .toLowerCase();
 }
 
+function normalizeRootPath(input: string | undefined): string | null {
+  if (!input) {
+    return null;
+  }
+
+  const normalized = toPosixPath(input)
+    .trim()
+    .replace(/^\.\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+
+  return normalized.length > 0 ? normalized : null;
+}
+
+function pathDepthOf(input: string): number {
+  if (input.length === 0) {
+    return 0;
+  }
+  return input.split("/").filter((segment) => segment.length > 0).length;
+}
+
+function isEntryInsideRootPath(entry: SearchableWorkspaceEntry, rootPath: string | null): boolean {
+  if (!rootPath) {
+    return true;
+  }
+
+  return entry.normalizedPath === rootPath || entry.normalizedPath.startsWith(`${rootPath}/`);
+}
+
+function isEntryWithinMaxDepth(
+  entry: SearchableWorkspaceEntry,
+  rootPath: string | null,
+  maxDepth: number | undefined,
+): boolean {
+  if (maxDepth === undefined) {
+    return true;
+  }
+
+  const rootDepth = rootPath ? pathDepthOf(rootPath) : 0;
+  return pathDepthOf(entry.path) - rootDepth <= maxDepth;
+}
+
 function scoreSubsequenceMatch(value: string, query: string): number | null {
   if (!query) return 0;
 
@@ -471,11 +514,20 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
       return yield* Cache.get(workspaceIndexCache, normalizedCwd).pipe(
         Effect.map((index) => {
           const normalizedQuery = normalizeQuery(input.query);
+          const normalizedRootPath = normalizeRootPath(input.rootPath);
           const limit = Math.max(0, Math.floor(input.limit));
           const rankedEntries: RankedWorkspaceEntry[] = [];
           let matchedEntryCount = 0;
 
           for (const entry of index.entries) {
+            if (!isEntryInsideRootPath(entry, normalizedRootPath)) {
+              continue;
+            }
+
+            if (!isEntryWithinMaxDepth(entry, normalizedRootPath, input.maxDepth)) {
+              continue;
+            }
+
             const score = scoreEntry(entry, normalizedQuery);
             if (score === null) {
               continue;
