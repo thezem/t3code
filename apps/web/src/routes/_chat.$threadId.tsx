@@ -60,7 +60,7 @@ const DiffPanelSheet = (props: {
         side="right"
         showCloseButton={false}
         keepMounted
-        className="w-[min(88vw,820px)] max-w-[820px] p-0"
+        className="w-[min(88vw,820px)] max-w-205 p-0"
       >
         {props.children}
       </SheetPopup>
@@ -215,7 +215,7 @@ const FileViewerResizablePanel = () => {
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
-    const delta = e.clientX - drag.startX;
+    const delta = drag.startX - e.clientX;
     const maxWidth = window.innerWidth * FILE_VIEWER_MAX_WIDTH_VW_RATIO;
     const nextWidth = Math.max(FILE_VIEWER_MIN_WIDTH, Math.min(maxWidth, drag.startWidth + delta));
     drag.currentWidth = nextWidth;
@@ -245,15 +245,15 @@ const FileViewerResizablePanel = () => {
   return (
     <div
       ref={outerRef}
-      className="relative flex-none h-dvh overflow-hidden border-r border-border bg-card text-foreground transition-[width] duration-200 ease-linear"
+      className="relative flex-none h-dvh overflow-hidden border-l border-border bg-card text-foreground transition-[width] duration-200 ease-linear"
       style={{ width: open ? width : 0 }}
     >
       <div ref={innerRef} className="h-full" style={{ width, minWidth: width }}>
         <FileViewerPanel />
       </div>
-      {/* Drag-to-resize handle on the right edge */}
+      {/* Drag-to-resize handle on the left edge */}
       <div
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize z-10 hover:bg-border/60 transition-colors"
+        className="absolute left-0 top-0 h-full w-1 cursor-col-resize z-10 hover:bg-border/60 transition-colors"
         style={{ touchAction: "none" }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -450,10 +450,10 @@ function ChatThreadRouteView() {
   if (!shouldUseDiffSheet) {
     return (
       <>
-        <FileViewerResizablePanel />
         <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
           <ChatView threadId={threadId} />
         </SidebarInset>
+        <FileViewerResizablePanel />
         <FileExplorerResizablePanel threadId={threadId} />
         <DiffPanelInlineSidebar
           diffOpen={diffOpen}
@@ -467,10 +467,10 @@ function ChatThreadRouteView() {
 
   return (
     <>
-      <FileViewerResizablePanel />
       <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
         <ChatView threadId={threadId} />
       </SidebarInset>
+      <FileViewerResizablePanel />
       <FileExplorerResizablePanel threadId={threadId} />
       <DiffPanelSheet diffOpen={diffOpen} onCloseDiff={closeDiff}>
         {shouldRenderDiffContent ? <LazyDiffPanel mode="sheet" /> : null}
