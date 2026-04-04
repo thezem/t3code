@@ -126,20 +126,36 @@
 
 .dark.one-dark-pro-darker {
   color-scheme: dark;
-  --background: color-mix(in srgb, #23272e 100%, transparent);
-  --foreground: color-mix(in srgb, #abb2bf 100%, transparent);
-  --card: color-mix(in srgb, #1e2227 100%, transparent);
-  --card-foreground: color-mix(in srgb, #abb2bf 100%, transparent);
-  --popover: color-mix(in srgb, #1e2227 100%, transparent);
-  --popover-foreground: color-mix(in srgb, #abb2bf 100%, transparent);
-  --secondary: color-mix(in srgb, #2c313a 100%, transparent);
-  --secondary-foreground: color-mix(in srgb, #d7dae0 100%, transparent);
-  --muted: color-mix(in srgb, #2c313a 100%, transparent);
-  --muted-foreground: color-mix(in srgb, #636b78 100%, transparent);
-  --accent: color-mix(in srgb, #2c313a 100%, transparent);
-  --accent-foreground: color-mix(in srgb, #abb2bf 100%, transparent);
-  --border: color-mix(in srgb, #3e4452 50%, transparent);
-  --input: color-mix(in srgb, #1d1f23 100%, transparent);
+  /* One Dark Pro — editor surface */
+  --background: #23272e;
+  --foreground: #abb2bf;
+  --card: #1e2227;
+  --card-foreground: #abb2bf;
+  --popover: #1e2227;
+  --popover-foreground: #abb2bf;
+  /* Primary action: badge/remote-indicator blue */
+  --primary: #4d78cc;
+  --primary-foreground: #f8fafd;
+  /* Selection / hover surfaces */
+  --secondary: #2c313a;
+  --secondary-foreground: #d7dae0;
+  --muted: #2c313a;
+  --muted-foreground: #636b78;
+  --accent: #2c313a;
+  --accent-foreground: #abb2bf;
+  /* Semantic colours */
+  --destructive: #c24038;
+  --destructive-foreground: #ff616e;
+  --info: #61afef;
+  --info-foreground: #4dc4ff;
+  --success: #109868;
+  --success-foreground: #a5e075;
+  --warning: #d19a66;
+  --warning-foreground: #e5c07b;
+  /* Chrome */
+  --border: #3e4452;
+  --input: #1d1f23;
+  --ring: #528bff;
 }
 
 body {
