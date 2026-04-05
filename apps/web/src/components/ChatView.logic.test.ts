@@ -74,6 +74,19 @@ describe("deriveComposerSendState", () => {
     expect(state.selectedSkills).toEqual(["polish"]);
     expect(state.hasSendableContent).toBe(true);
   });
+
+  it("treats skill-only prompts as sendable content", () => {
+    const state = deriveComposerSendState({
+      prompt: "/polish",
+      imageCount: 0,
+      terminalContexts: [],
+      availableSkillNames: ["polish"],
+    });
+
+    expect(state.trimmedPrompt).toBe("");
+    expect(state.selectedSkills).toEqual(["polish"]);
+    expect(state.hasSendableContent).toBe(true);
+  });
 });
 
 describe("buildExpiredTerminalContextToastCopy", () => {

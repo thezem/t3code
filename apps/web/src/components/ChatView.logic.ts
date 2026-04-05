@@ -165,6 +165,7 @@ export function deriveComposerSendState(options: {
   selectedSkills: string[];
 } {
   const availableSkillNames = options.availableSkillNames ?? [];
+  const selectedSkills = getPromptSkillMentions(options.prompt, availableSkillNames);
   const promptWithoutSkills = stripPromptSkillMentions(options.prompt, availableSkillNames);
   const trimmedPrompt = stripInlineTerminalContextPlaceholders(promptWithoutSkills).trim();
   const sendableTerminalContexts = filterTerminalContextsWithText(options.terminalContexts);
@@ -175,8 +176,11 @@ export function deriveComposerSendState(options: {
     sendableTerminalContexts,
     expiredTerminalContextCount,
     hasSendableContent:
-      trimmedPrompt.length > 0 || options.imageCount > 0 || sendableTerminalContexts.length > 0,
-    selectedSkills: getPromptSkillMentions(options.prompt, availableSkillNames),
+      trimmedPrompt.length > 0 ||
+      options.imageCount > 0 ||
+      sendableTerminalContexts.length > 0 ||
+      selectedSkills.length > 0,
+    selectedSkills,
   };
 }
 

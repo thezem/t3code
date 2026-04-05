@@ -165,7 +165,7 @@ export function stripPromptSkillMentions(
 
   for (const segment of segments) {
     if (segment.type === "skill") {
-      trimLeadingWhitespace = /\s$/.test(nextPrompt);
+      trimLeadingWhitespace = nextPrompt.length === 0 || /\s$/.test(nextPrompt);
       continue;
     }
 

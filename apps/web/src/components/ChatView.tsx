@@ -3018,7 +3018,10 @@ export default function ChatView({ threadId }: ChatViewProps) {
       model: selectedModel,
       models: selectedProviderModels,
       effort: selectedPromptEffort,
-      text: messageTextForSend || IMAGE_ONLY_BOOTSTRAP_PROMPT,
+      text:
+        messageTextForSend.length > 0 || composerImagesSnapshot.length === 0
+          ? messageTextForSend
+          : IMAGE_ONLY_BOOTSTRAP_PROMPT,
     });
     const turnAttachmentsPromise = Promise.all(
       composerImagesSnapshot.map(async (image) => ({
