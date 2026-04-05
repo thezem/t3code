@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { splitPromptIntoComposerSegments } from "./composer-editor-mentions";
+import {
+  getPromptSkillMentions,
+  splitPromptIntoComposerSegments,
+  stripPromptSkillMentions,
+} from "./composer-editor-mentions";
 import { INLINE_TERMINAL_CONTEXT_PLACEHOLDER } from "./lib/terminalContext";
 
 describe("splitPromptIntoComposerSegments", () => {
@@ -37,5 +41,28 @@ describe("splitPromptIntoComposerSegments", () => {
       { type: "mention", path: "AGENTS.md" },
       { type: "text", text: " please" },
     ]);
+  });
+
+  it("renders matching /skill tokens as skill segments", () => {
+    expect(splitPromptIntoComposerSegments("/polish Final pass", [], ["polish"])).toEqual([
+      { type: "skill", skillName: "polish" },
+      { type: "text", text: " Final pass" },
+    ]);
+  });
+});
+
+describe("skill prompt helpers", () => {
+  it("collects unique skill mentions in prompt order", () => {
+    expect(getPromptSkillMentions("/polish /adapt /polish", ["polish", "adapt"])).toEqual([
+      "polish",
+      "adapt",
+    ]);
+  });
+
+  it("strips skill mentions while keeping surrounding text readable", () => {
+    expect(stripPromptSkillMentions("/polish Final quality pass", ["polish"])).toBe(
+      "Final quality pass",
+    );
+    expect(stripPromptSkillMentions("Need /polish this", ["polish"])).toBe("Need this");
   });
 });

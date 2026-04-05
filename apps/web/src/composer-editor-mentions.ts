@@ -13,11 +13,16 @@ export type ComposerPromptSegment =
       path: string;
     }
   | {
+      type: "skill";
+      skillName: string;
+    }
+  | {
       type: "terminal-context";
       context: TerminalContextDraft | null;
     };
 
 const MENTION_TOKEN_REGEX = /(^|\s)@([^\s@]+)(?=\s)/g;
+const SKILL_TOKEN_REGEX = /(^|\s)\/([^\s/]+)(?=\s|$)/g;
 
 function pushTextSegment(segments: ComposerPromptSegment[], text: string): void {
   if (!text) return;
@@ -29,32 +34,56 @@ function pushTextSegment(segments: ComposerPromptSegment[], text: string): void 
   segments.push({ type: "text", text });
 }
 
-function splitPromptTextIntoComposerSegments(text: string): ComposerPromptSegment[] {
+function splitPromptTextIntoComposerSegments(
+  text: string,
+  availableSkillNames: ReadonlySet<string>,
+): ComposerPromptSegment[] {
   const segments: ComposerPromptSegment[] = [];
   if (!text) {
     return segments;
   }
 
+  const tokenMatches = [
+    ...Array.from(text.matchAll(MENTION_TOKEN_REGEX), (match) => ({
+      kind: "mention" as const,
+      match,
+    })),
+    ...Array.from(text.matchAll(SKILL_TOKEN_REGEX), (match) => ({
+      kind: "skill" as const,
+      match,
+    })),
+  ].toSorted((left, right) => (left.match.index ?? 0) - (right.match.index ?? 0));
+
   let cursor = 0;
-  for (const match of text.matchAll(MENTION_TOKEN_REGEX)) {
-    const fullMatch = match[0];
-    const prefix = match[1] ?? "";
-    const path = match[2] ?? "";
-    const matchIndex = match.index ?? 0;
-    const mentionStart = matchIndex + prefix.length;
-    const mentionEnd = mentionStart + fullMatch.length - prefix.length;
+  for (const tokenMatch of tokenMatches) {
+    const fullMatch = tokenMatch.match[0] ?? "";
+    const prefix = tokenMatch.match[1] ?? "";
+    const value = tokenMatch.match[2] ?? "";
+    const matchIndex = tokenMatch.match.index ?? 0;
+    const tokenStart = matchIndex + prefix.length;
+    const tokenEnd = tokenStart + fullMatch.length - prefix.length;
 
-    if (mentionStart > cursor) {
-      pushTextSegment(segments, text.slice(cursor, mentionStart));
+    if (tokenStart < cursor) {
+      continue;
     }
 
-    if (path.length > 0) {
-      segments.push({ type: "mention", path });
+    if (tokenStart > cursor) {
+      pushTextSegment(segments, text.slice(cursor, tokenStart));
+    }
+
+    if (tokenMatch.kind === "mention") {
+      if (value.length > 0) {
+        segments.push({ type: "mention", path: value });
+      } else {
+        pushTextSegment(segments, text.slice(tokenStart, tokenEnd));
+      }
+    } else if (value.length > 0 && availableSkillNames.has(value)) {
+      segments.push({ type: "skill", skillName: value });
     } else {
-      pushTextSegment(segments, text.slice(mentionStart, mentionEnd));
+      pushTextSegment(segments, text.slice(tokenStart, tokenEnd));
     }
 
-    cursor = mentionEnd;
+    cursor = tokenEnd;
   }
 
   if (cursor < text.length) {
@@ -67,6 +96,7 @@ function splitPromptTextIntoComposerSegments(text: string): ComposerPromptSegmen
 export function splitPromptIntoComposerSegments(
   prompt: string,
   terminalContexts: ReadonlyArray<TerminalContextDraft> = [],
+  availableSkillNamesInput: ReadonlyArray<string> = [],
 ): ComposerPromptSegment[] {
   if (!prompt) {
     return [];
@@ -75,6 +105,7 @@ export function splitPromptIntoComposerSegments(
   const segments: ComposerPromptSegment[] = [];
   let textCursor = 0;
   let terminalContextIndex = 0;
+  const availableSkillNames = new Set(availableSkillNamesInput);
 
   for (let index = 0; index < prompt.length; index += 1) {
     if (prompt[index] !== INLINE_TERMINAL_CONTEXT_PLACEHOLDER) {
@@ -82,7 +113,12 @@ export function splitPromptIntoComposerSegments(
     }
 
     if (index > textCursor) {
-      segments.push(...splitPromptTextIntoComposerSegments(prompt.slice(textCursor, index)));
+      segments.push(
+        ...splitPromptTextIntoComposerSegments(
+          prompt.slice(textCursor, index),
+          availableSkillNames,
+        ),
+      );
     }
     segments.push({
       type: "terminal-context",
@@ -93,8 +129,60 @@ export function splitPromptIntoComposerSegments(
   }
 
   if (textCursor < prompt.length) {
-    segments.push(...splitPromptTextIntoComposerSegments(prompt.slice(textCursor)));
+    segments.push(
+      ...splitPromptTextIntoComposerSegments(prompt.slice(textCursor), availableSkillNames),
+    );
   }
 
   return segments;
+}
+
+export function getPromptSkillMentions(
+  prompt: string,
+  availableSkillNames: ReadonlyArray<string>,
+): string[] {
+  const selectedSkillNames: string[] = [];
+  const seen = new Set<string>();
+
+  for (const segment of splitPromptIntoComposerSegments(prompt, [], availableSkillNames)) {
+    if (segment.type !== "skill" || seen.has(segment.skillName)) {
+      continue;
+    }
+    seen.add(segment.skillName);
+    selectedSkillNames.push(segment.skillName);
+  }
+
+  return selectedSkillNames;
+}
+
+export function stripPromptSkillMentions(
+  prompt: string,
+  availableSkillNames: ReadonlyArray<string>,
+): string {
+  const segments = splitPromptIntoComposerSegments(prompt, [], availableSkillNames);
+  let nextPrompt = "";
+  let trimLeadingWhitespace = false;
+
+  for (const segment of segments) {
+    if (segment.type === "skill") {
+      trimLeadingWhitespace = /\s$/.test(nextPrompt);
+      continue;
+    }
+
+    const nextText =
+      segment.type === "mention"
+        ? `@${segment.path}`
+        : segment.type === "terminal-context"
+          ? INLINE_TERMINAL_CONTEXT_PLACEHOLDER
+          : segment.text;
+
+    if (trimLeadingWhitespace && nextText.length > 0 && /^\s/.test(nextText)) {
+      nextPrompt += nextText.slice(1);
+    } else {
+      nextPrompt += nextText;
+    }
+    trimLeadingWhitespace = false;
+  }
+
+  return trimLeadingWhitespace ? nextPrompt.replace(/\s$/, "") : nextPrompt;
 }

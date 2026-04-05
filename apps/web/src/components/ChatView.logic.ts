@@ -9,6 +9,7 @@ import {
   stripInlineTerminalContextPlaceholders,
   type TerminalContextDraft,
 } from "../lib/terminalContext";
+import { getPromptSkillMentions, stripPromptSkillMentions } from "../composer-editor-mentions";
 
 export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "t3code:last-invoked-script-by-project";
 export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 10;
@@ -155,13 +156,17 @@ export function deriveComposerSendState(options: {
   prompt: string;
   imageCount: number;
   terminalContexts: ReadonlyArray<TerminalContextDraft>;
+  availableSkillNames?: ReadonlyArray<string>;
 }): {
   trimmedPrompt: string;
   sendableTerminalContexts: TerminalContextDraft[];
   expiredTerminalContextCount: number;
   hasSendableContent: boolean;
+  selectedSkills: string[];
 } {
-  const trimmedPrompt = stripInlineTerminalContextPlaceholders(options.prompt).trim();
+  const availableSkillNames = options.availableSkillNames ?? [];
+  const promptWithoutSkills = stripPromptSkillMentions(options.prompt, availableSkillNames);
+  const trimmedPrompt = stripInlineTerminalContextPlaceholders(promptWithoutSkills).trim();
   const sendableTerminalContexts = filterTerminalContextsWithText(options.terminalContexts);
   const expiredTerminalContextCount =
     options.terminalContexts.length - sendableTerminalContexts.length;
@@ -171,6 +176,7 @@ export function deriveComposerSendState(options: {
     expiredTerminalContextCount,
     hasSendableContent:
       trimmedPrompt.length > 0 || options.imageCount > 0 || sendableTerminalContexts.length > 0,
+    selectedSkills: getPromptSkillMentions(options.prompt, availableSkillNames),
   };
 }
 

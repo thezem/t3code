@@ -1,7 +1,7 @@
-import { type ProjectEntry, type ProviderKind } from "@t3tools/contracts";
+import { type ProjectEntry, type ProviderKind, type ProjectSkillName } from "@t3tools/contracts";
 import { memo, useLayoutEffect, useRef } from "react";
 import { type ComposerSlashCommand, type ComposerTriggerKind } from "../../composer-logic";
-import { BotIcon } from "lucide-react";
+import { BotIcon, SparklesIcon } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Badge } from "../ui/badge";
 import { Command, CommandItem, CommandList } from "../ui/command";
@@ -22,6 +22,14 @@ export type ComposerCommandItem =
       command: ComposerSlashCommand;
       label: string;
       description: string;
+    }
+  | {
+      id: string;
+      type: "skill";
+      skillName: ProjectSkillName;
+      label: string;
+      description: string;
+      selected: boolean;
     }
   | {
       id: string;
@@ -126,9 +134,17 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
       {props.item.type === "slash-command" ? (
         <BotIcon className="size-4 text-muted-foreground/80" />
       ) : null}
+      {props.item.type === "skill" ? (
+        <SparklesIcon className="size-4 text-muted-foreground/80" />
+      ) : null}
       {props.item.type === "model" ? (
         <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
           model
+        </Badge>
+      ) : null}
+      {props.item.type === "skill" && props.item.selected ? (
+        <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+          selected
         </Badge>
       ) : null}
       <span className="flex min-w-0 items-center gap-1.5 truncate">

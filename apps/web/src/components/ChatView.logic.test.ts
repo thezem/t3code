@@ -29,6 +29,7 @@ describe("deriveComposerSendState", () => {
           createdAt: "2026-03-17T12:52:29.000Z",
         },
       ],
+      availableSkillNames: [],
     });
 
     expect(state.trimmedPrompt).toBe("");
@@ -53,10 +54,24 @@ describe("deriveComposerSendState", () => {
           createdAt: "2026-03-17T12:52:29.000Z",
         },
       ],
+      availableSkillNames: [],
     });
 
     expect(state.trimmedPrompt).toBe("yoo  waddup");
     expect(state.expiredTerminalContextCount).toBe(1);
+    expect(state.hasSendableContent).toBe(true);
+  });
+
+  it("derives skills from inline /skill tokens and strips them from text", () => {
+    const state = deriveComposerSendState({
+      prompt: "/polish tighten spacing",
+      imageCount: 0,
+      terminalContexts: [],
+      availableSkillNames: ["polish"],
+    });
+
+    expect(state.trimmedPrompt).toBe("tighten spacing");
+    expect(state.selectedSkills).toEqual(["polish"]);
     expect(state.hasSendableContent).toBe(true);
   });
 });

@@ -60,6 +60,18 @@ describe("detectComposerTrigger", () => {
     });
   });
 
+  it("keeps slash menu open for skill queries", () => {
+    const text = "/pol";
+    const trigger = detectComposerTrigger(text, text.length);
+
+    expect(trigger).toEqual({
+      kind: "slash-command",
+      query: "pol",
+      rangeStart: 0,
+      rangeEnd: text.length,
+    });
+  });
+
   it("detects @path trigger in the middle of existing text", () => {
     // User typed @ between "inspect " and "in this sentence"
     const text = "Please inspect @in this sentence";
@@ -126,6 +138,11 @@ describe("expandCollapsedComposerCursor", () => {
     );
   });
 
+  it("maps collapsed skill cursor to expanded text cursor", () => {
+    const text = "/polish tighten";
+    expect(expandCollapsedComposerCursor(text, 1, ["polish"])).toBe("/polish".length);
+  });
+
   it("allows path trigger detection to close after selecting a mention", () => {
     const text = "what's in my @AGENTS.md ";
     const collapsedCursorAfterMention = "what's in my ".length + 2;
@@ -150,6 +167,11 @@ describe("collapseExpandedComposerCursor", () => {
     );
   });
 
+  it("maps expanded skill cursor back to collapsed cursor", () => {
+    const text = "/polish tighten";
+    expect(collapseExpandedComposerCursor(text, "/polish".length, ["polish"])).toBe(1);
+  });
+
   it("keeps replacement cursors aligned when another mention already exists earlier", () => {
     const text = "open @AGENTS.md then @src/index.ts ";
     const expandedCursor = text.length;
@@ -170,6 +192,12 @@ describe("clampCollapsedComposerCursor", () => {
     expect(clampCollapsedComposerCursor(text, Number.POSITIVE_INFINITY)).toBe(
       "open ".length + 1 + " then ".length,
     );
+  });
+
+  it("clamps to collapsed prompt length when skills are present", () => {
+    expect(
+      clampCollapsedComposerCursor("/polish tighten", Number.POSITIVE_INFINITY, ["polish"]),
+    ).toBe(1 + " tighten".length);
   });
 });
 
@@ -232,6 +260,12 @@ describe("isCollapsedCursorAdjacentToInlineToken", () => {
 
     expect(isCollapsedCursorAdjacentToInlineToken(text, tokenEnd, "left")).toBe(true);
     expect(isCollapsedCursorAdjacentToInlineToken(text, tokenStart, "right")).toBe(true);
+  });
+
+  it("treats skill chips as inline tokens for adjacency checks", () => {
+    const text = "/polish next";
+    expect(isCollapsedCursorAdjacentToInlineToken(text, 1, "left", ["polish"])).toBe(true);
+    expect(isCollapsedCursorAdjacentToInlineToken(text, 0, "right", ["polish"])).toBe(true);
   });
 });
 
