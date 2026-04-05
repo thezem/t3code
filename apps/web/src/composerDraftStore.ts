@@ -5,6 +5,7 @@ import {
   DEFAULT_MODEL_BY_PROVIDER,
   ModelSelection,
   ProjectId,
+  ProjectSkillName,
   ProviderInteractionMode,
   ProviderKind,
   ProviderModelOptions,
@@ -32,7 +33,7 @@ import { getDefaultServerModel } from "./providerModels";
 import { UnifiedSettings } from "@t3tools/contracts/settings";
 
 export const COMPOSER_DRAFT_STORAGE_KEY = "t3code:composer-drafts:v1";
-const COMPOSER_DRAFT_STORAGE_VERSION = 3;
+const COMPOSER_DRAFT_STORAGE_VERSION = 4;
 const DraftThreadEnvModeSchema = Schema.Literals(["local", "worktree"]);
 export type DraftThreadEnvMode = typeof DraftThreadEnvModeSchema.Type;
 
@@ -79,6 +80,7 @@ const PersistedComposerThreadDraftState = Schema.Struct({
   prompt: Schema.String,
   attachments: Schema.Array(PersistedComposerImageAttachment),
   terminalContexts: Schema.optionalKey(Schema.Array(PersistedTerminalContextDraft)),
+  selectedSkills: Schema.optionalKey(Schema.Array(ProjectSkillName)),
   modelSelectionByProvider: Schema.optionalKey(
     Schema.Record(ProviderKind, Schema.optionalKey(ModelSelection)),
   ),
@@ -161,6 +163,7 @@ export interface ComposerThreadDraftState {
   nonPersistedImageIds: string[];
   persistedAttachments: PersistedComposerImageAttachment[];
   terminalContexts: TerminalContextDraft[];
+  selectedSkills: ProjectSkillName[];
   modelSelectionByProvider: Partial<Record<ProviderKind, ModelSelection>>;
   activeProvider: ProviderKind | null;
   runtimeMode: RuntimeMode | null;
@@ -220,6 +223,7 @@ interface ComposerDraftStoreState {
   setPrompt: (threadId: ThreadId, prompt: string) => void;
   appendMentionToPrompt: (threadId: ThreadId, relativePath: string) => void;
   setTerminalContexts: (threadId: ThreadId, contexts: TerminalContextDraft[]) => void;
+  setSelectedSkills: (threadId: ThreadId, skillNames: ReadonlyArray<ProjectSkillName>) => void;
   setModelSelection: (
     threadId: ThreadId,
     modelSelection: ModelSelection | null | undefined,
@@ -305,9 +309,11 @@ const EMPTY_IMAGES: ComposerImageAttachment[] = [];
 const EMPTY_IDS: string[] = [];
 const EMPTY_PERSISTED_ATTACHMENTS: PersistedComposerImageAttachment[] = [];
 const EMPTY_TERMINAL_CONTEXTS: TerminalContextDraft[] = [];
+const EMPTY_SELECTED_SKILLS: ProjectSkillName[] = [];
 Object.freeze(EMPTY_IMAGES);
 Object.freeze(EMPTY_IDS);
 Object.freeze(EMPTY_PERSISTED_ATTACHMENTS);
+Object.freeze(EMPTY_SELECTED_SKILLS);
 const EMPTY_MODEL_SELECTION_BY_PROVIDER: Partial<Record<ProviderKind, ModelSelection>> =
   Object.freeze({});
 
@@ -317,6 +323,7 @@ const EMPTY_THREAD_DRAFT = Object.freeze<ComposerThreadDraftState>({
   nonPersistedImageIds: EMPTY_IDS,
   persistedAttachments: EMPTY_PERSISTED_ATTACHMENTS,
   terminalContexts: EMPTY_TERMINAL_CONTEXTS,
+  selectedSkills: EMPTY_SELECTED_SKILLS,
   modelSelectionByProvider: EMPTY_MODEL_SELECTION_BY_PROVIDER,
   activeProvider: null,
   runtimeMode: null,
@@ -330,6 +337,7 @@ function createEmptyThreadDraft(): ComposerThreadDraftState {
     nonPersistedImageIds: [],
     persistedAttachments: [],
     terminalContexts: [],
+    selectedSkills: [],
     modelSelectionByProvider: {},
     activeProvider: null,
     runtimeMode: null,
@@ -400,11 +408,38 @@ function shouldRemoveDraft(draft: ComposerThreadDraftState): boolean {
     draft.images.length === 0 &&
     draft.persistedAttachments.length === 0 &&
     draft.terminalContexts.length === 0 &&
+    draft.selectedSkills.length === 0 &&
     Object.keys(draft.modelSelectionByProvider).length === 0 &&
     draft.activeProvider === null &&
     draft.runtimeMode === null &&
     draft.interactionMode === null
   );
+}
+
+function normalizeProjectSkillNames(
+  skillNames: ReadonlyArray<ProjectSkillName> | ReadonlyArray<string> | undefined,
+): ProjectSkillName[] {
+  if (!skillNames) {
+    return [];
+  }
+  const seen = new Set<ProjectSkillName>();
+  const normalized: ProjectSkillName[] = [];
+  for (const skillName of skillNames) {
+    if (typeof skillName !== "string") {
+      continue;
+    }
+    const trimmed = skillName.trim();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(trimmed)) {
+      continue;
+    }
+    const normalizedName = trimmed.toLowerCase() as ProjectSkillName;
+    if (seen.has(normalizedName)) {
+      continue;
+    }
+    seen.add(normalizedName);
+    normalized.push(normalizedName);
+  }
+  return normalized;
 }
 
 function normalizeProviderKind(value: unknown): ProviderKind | null {
@@ -867,6 +902,9 @@ function normalizePersistedDraftsByThreadId(
           return normalized ? [normalized] : [];
         })
       : [];
+    const selectedSkills = Array.isArray(draftCandidate.selectedSkills)
+      ? normalizeProjectSkillNames(draftCandidate.selectedSkills)
+      : [];
     const runtimeMode =
       draftCandidate.runtimeMode === "approval-required" ||
       draftCandidate.runtimeMode === "full-access"
@@ -932,6 +970,7 @@ function normalizePersistedDraftsByThreadId(
       promptCandidate.length === 0 &&
       attachments.length === 0 &&
       terminalContexts.length === 0 &&
+      selectedSkills.length === 0 &&
       !hasModelData &&
       !runtimeMode &&
       !interactionMode
@@ -942,6 +981,7 @@ function normalizePersistedDraftsByThreadId(
       prompt,
       attachments,
       ...(terminalContexts.length > 0 ? { terminalContexts } : {}),
+      ...(selectedSkills.length > 0 ? { selectedSkills } : {}),
       ...(hasModelData ? { modelSelectionByProvider, activeProvider } : {}),
       ...(runtimeMode ? { runtimeMode } : {}),
       ...(interactionMode ? { interactionMode } : {}),
@@ -1011,6 +1051,7 @@ function partializeComposerDraftStoreState(
       draft.prompt.length === 0 &&
       draft.persistedAttachments.length === 0 &&
       draft.terminalContexts.length === 0 &&
+      draft.selectedSkills.length === 0 &&
       !hasModelData &&
       draft.runtimeMode === null &&
       draft.interactionMode === null
@@ -1033,6 +1074,7 @@ function partializeComposerDraftStoreState(
             })),
           }
         : {}),
+      ...(draft.selectedSkills.length > 0 ? { selectedSkills: draft.selectedSkills } : {}),
       ...(hasModelData
         ? {
             modelSelectionByProvider: draft.modelSelectionByProvider,
@@ -1252,6 +1294,7 @@ function toHydratedThreadDraft(
         ...context,
         text: "",
       })) ?? [],
+    selectedSkills: normalizeProjectSkillNames(persistedDraft.selectedSkills),
     modelSelectionByProvider,
     activeProvider,
     runtimeMode: persistedDraft.runtimeMode ?? null,
@@ -1620,6 +1663,36 @@ export const useComposerDraftStore = create<ComposerDraftStoreState>()(
               normalizedContexts.length,
             ),
             terminalContexts: normalizedContexts,
+          };
+          const nextDraftsByThreadId = { ...state.draftsByThreadId };
+          if (shouldRemoveDraft(nextDraft)) {
+            delete nextDraftsByThreadId[threadId];
+          } else {
+            nextDraftsByThreadId[threadId] = nextDraft;
+          }
+          return { draftsByThreadId: nextDraftsByThreadId };
+        });
+      },
+      setSelectedSkills: (threadId, skillNames) => {
+        if (threadId.length === 0) {
+          return;
+        }
+        const normalizedSkills = normalizeProjectSkillNames(skillNames);
+        set((state) => {
+          const existing = state.draftsByThreadId[threadId];
+          if (!existing && normalizedSkills.length === 0) {
+            return state;
+          }
+          const base = existing ?? createEmptyThreadDraft();
+          const unchanged =
+            base.selectedSkills.length === normalizedSkills.length &&
+            base.selectedSkills.every((skillName, index) => skillName === normalizedSkills[index]);
+          if (unchanged) {
+            return state;
+          }
+          const nextDraft: ComposerThreadDraftState = {
+            ...base,
+            selectedSkills: normalizedSkills,
           };
           const nextDraftsByThreadId = { ...state.draftsByThreadId };
           if (shouldRemoveDraft(nextDraft)) {

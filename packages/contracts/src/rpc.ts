@@ -45,6 +45,9 @@ import {
   ProjectReadFileError,
   ProjectReadFileInput,
   ProjectReadFileResult,
+  ProjectListSkillsError,
+  ProjectListSkillsInput,
+  ProjectListSkillsResult,
   ProjectSearchEntriesError,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
@@ -81,6 +84,7 @@ export const WS_METHODS = {
   projectsSearchEntries: "projects.searchEntries",
   projectsWriteFile: "projects.writeFile",
   projectsReadFile: "projects.readFile",
+  projectsListSkills: "projects.listSkills",
 
   // Shell methods
   shellOpenInEditor: "shell.openInEditor",
@@ -165,6 +169,12 @@ export const WsProjectsReadFileRpc = Rpc.make(WS_METHODS.projectsReadFile, {
   payload: ProjectReadFileInput,
   success: ProjectReadFileResult,
   error: ProjectReadFileError,
+});
+
+export const WsProjectsListSkillsRpc = Rpc.make(WS_METHODS.projectsListSkills, {
+  payload: ProjectListSkillsInput,
+  success: ProjectListSkillsResult,
+  error: ProjectListSkillsError,
 });
 
 export const WsShellOpenInEditorRpc = Rpc.make(WS_METHODS.shellOpenInEditor, {
@@ -340,6 +350,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsProjectsSearchEntriesRpc,
   WsProjectsWriteFileRpc,
   WsProjectsReadFileRpc,
+  WsProjectsListSkillsRpc,
   WsShellOpenInEditorRpc,
   WsGitStatusRpc,
   WsGitPullRpc,

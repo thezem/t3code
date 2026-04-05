@@ -5,6 +5,7 @@ import {
   type ModelSelection,
   type OrchestrationEvent,
   ProviderKind,
+  type ProjectSkillName,
   type OrchestrationSession,
   ThreadId,
   type ProviderSession,
@@ -20,6 +21,7 @@ import { increment, orchestrationEventsProcessedTotal } from "../../observabilit
 import { ProviderAdapterRequestError, ProviderServiceError } from "../../provider/Errors.ts";
 import { TextGeneration } from "../../git/Services/TextGeneration.ts";
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
+import { ProjectSkills } from "../../project/Services/ProjectSkills.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
   ProviderCommandReactor,
@@ -43,6 +45,39 @@ type ProviderIntentEvent = Extract<
 function toNonEmptyProviderInput(value: string | undefined): string | undefined {
   const normalized = value?.trim();
   return normalized && normalized.length > 0 ? normalized : undefined;
+}
+
+function escapeSkillAttribute(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "'").replaceAll("<", "&lt;");
+}
+
+function buildSkillPromptPrefix(input: {
+  readonly skills: ReadonlyArray<{
+    readonly name: string;
+    readonly source: "workspace" | "global";
+    readonly description: string;
+    readonly contents: string;
+  }>;
+}): string | undefined {
+  const normalizedSkills = input.skills.filter((skill) => skill.contents.trim().length > 0);
+  if (normalizedSkills.length === 0) {
+    return undefined;
+  }
+
+  const lines = ["<attached_skills>"];
+  for (const skill of normalizedSkills) {
+    lines.push(
+      `<skill name="${escapeSkillAttribute(skill.name)}" source="${skill.source}" description="${escapeSkillAttribute(skill.description)}">`,
+      skill.contents.trim(),
+      "</skill>",
+    );
+  }
+  lines.push(
+    "</attached_skills>",
+    "",
+    "Apply the attached skills where relevant to this turn. Workspace skills override global skills when names conflict.",
+  );
+  return lines.join("\n");
 }
 
 function mapProviderSessionStatusToOrchestrationStatus(
@@ -151,6 +186,7 @@ const make = Effect.gen(function* () {
   const providerService = yield* ProviderService;
   const git = yield* GitCore;
   const textGeneration = yield* TextGeneration;
+  const projectSkills = yield* ProjectSkills;
   const serverSettingsService = yield* ServerSettingsService;
   const handledTurnStartKeys = yield* Cache.make<string, true>({
     capacity: HANDLED_TURN_START_KEY_MAX,
@@ -363,6 +399,7 @@ const make = Effect.gen(function* () {
     readonly messageText: string;
     readonly attachments?: ReadonlyArray<ChatAttachment>;
     readonly modelSelection?: ModelSelection;
+    readonly skills?: ReadonlyArray<ProjectSkillName>;
     readonly interactionMode?: "default" | "plan";
     readonly createdAt: string;
   }) {
@@ -370,6 +407,11 @@ const make = Effect.gen(function* () {
     if (!thread) {
       return;
     }
+    const effectiveCwd =
+      resolveThreadWorkspaceCwd({
+        thread,
+        projects: (yield* orchestrationEngine.getReadModel()).projects,
+      }) ?? null;
     yield* ensureSessionForThread(
       input.threadId,
       input.createdAt,
@@ -378,7 +420,18 @@ const make = Effect.gen(function* () {
     if (input.modelSelection !== undefined) {
       threadModelSelections.set(input.threadId, input.modelSelection);
     }
-    const normalizedInput = toNonEmptyProviderInput(input.messageText);
+    const skillPrefix =
+      effectiveCwd && input.skills && input.skills.length > 0
+        ? buildSkillPromptPrefix({
+            skills: yield* projectSkills.resolveSelection({
+              cwd: effectiveCwd,
+              skillNames: input.skills,
+            }),
+          })
+        : undefined;
+    const normalizedInput = toNonEmptyProviderInput(
+      skillPrefix ? `${skillPrefix}\n\n${input.messageText}` : input.messageText,
+    );
     const normalizedAttachments = input.attachments ?? [];
     const activeSession = yield* providerService
       .listSessions()
@@ -406,6 +459,7 @@ const make = Effect.gen(function* () {
       ...(normalizedInput ? { input: normalizedInput } : {}),
       ...(normalizedAttachments.length > 0 ? { attachments: normalizedAttachments } : {}),
       ...(modelForTurn !== undefined ? { modelSelection: modelForTurn } : {}),
+      ...(input.skills && input.skills.length > 0 ? { skills: [...input.skills] } : {}),
       ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
     });
   });
@@ -572,6 +626,7 @@ const make = Effect.gen(function* () {
       ...(event.payload.modelSelection !== undefined
         ? { modelSelection: event.payload.modelSelection }
         : {}),
+      ...(event.payload.skills !== undefined ? { skills: event.payload.skills } : {}),
       interactionMode: event.payload.interactionMode,
       createdAt: event.payload.createdAt,
     }).pipe(

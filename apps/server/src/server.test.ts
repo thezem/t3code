@@ -69,6 +69,7 @@ import {
   type BrowserTraceCollectorShape,
 } from "./observability/Services/BrowserTraceCollector.ts";
 import { ProjectFaviconResolverLive } from "./project/Layers/ProjectFaviconResolver.ts";
+import { ProjectSkillsLive } from "./project/Layers/ProjectSkills.ts";
 import {
   ProjectSetupScriptRunner,
   type ProjectSetupScriptRunnerShape,
@@ -129,6 +130,7 @@ const makeDefaultOrchestrationReadModel = () => {
 const workspaceAndProjectServicesLayer = Layer.mergeAll(
   WorkspacePathsLive,
   WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive)),
+  ProjectSkillsLive,
   WorkspaceFileSystemLive.pipe(
     Layer.provide(WorkspacePathsLive),
     Layer.provide(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),

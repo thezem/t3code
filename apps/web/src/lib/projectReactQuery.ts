@@ -1,4 +1,4 @@
-import type { ProjectSearchEntriesResult } from "@t3tools/contracts";
+import type { ProjectListSkillsResult, ProjectSearchEntriesResult } from "@t3tools/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { ensureNativeApi } from "~/nativeApi";
 
@@ -34,6 +34,7 @@ export function projectReadFileQueryOptions(input: {
 
 export const projectQueryKeys = {
   all: ["projects"] as const,
+  skills: (cwd: string | null) => ["projects", "skills", cwd] as const,
   searchEntries: (
     cwd: string | null,
     query: string,
@@ -50,6 +51,10 @@ const DEFAULT_SEARCH_ENTRIES_STALE_TIME = 15_000;
 const EMPTY_SEARCH_ENTRIES_RESULT: ProjectSearchEntriesResult = {
   entries: [],
   truncated: false,
+};
+const EMPTY_SKILLS_RESULT: ProjectListSkillsResult = {
+  skills: [],
+  issues: [],
 };
 
 export function projectSearchEntriesQueryOptions(input: {
@@ -117,5 +122,23 @@ export function directoryEntriesQueryOptions(input: {
     enabled: (input.enabled ?? true) && input.cwd !== null,
     staleTime: input.staleTime ?? DEFAULT_SEARCH_ENTRIES_STALE_TIME,
     placeholderData: (previous) => previous ?? EMPTY_SEARCH_ENTRIES_RESULT,
+  });
+}
+
+export function projectSkillsQueryOptions(input: { cwd: string | null; enabled?: boolean }) {
+  return queryOptions({
+    queryKey: projectQueryKeys.skills(input.cwd),
+    queryFn: async () => {
+      const api = ensureNativeApi();
+      if (!input.cwd) {
+        throw new Error("Workspace skill lookup is unavailable.");
+      }
+      return api.projects.listSkills({
+        cwd: input.cwd,
+      });
+    },
+    enabled: (input.enabled ?? true) && input.cwd !== null,
+    staleTime: 30_000,
+    placeholderData: (previous) => previous ?? EMPTY_SKILLS_RESULT,
   });
 }

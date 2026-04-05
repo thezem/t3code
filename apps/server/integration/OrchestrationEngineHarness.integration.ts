@@ -70,6 +70,7 @@ import {
 import { deriveServerPaths, ServerConfig } from "../src/config.ts";
 import { WorkspaceEntriesLive } from "../src/workspace/Layers/WorkspaceEntries.ts";
 import { WorkspacePathsLive } from "../src/workspace/Layers/WorkspacePaths.ts";
+import { ProjectSkillsLive } from "../src/project/Layers/ProjectSkills.ts";
 
 function runGit(cwd: string, args: ReadonlyArray<string>) {
   return execFileSync("git", args, {
@@ -317,6 +318,7 @@ export const makeOrchestrationIntegrationHarness = (
       Layer.provideMerge(gitCoreLayer),
       Layer.provideMerge(textGenerationLayer),
       Layer.provideMerge(serverSettingsLayer),
+      Layer.provideMerge(ProjectSkillsLive),
     );
     const checkpointReactorLayer = CheckpointReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
@@ -339,6 +341,7 @@ export const makeOrchestrationIntegrationHarness = (
       Layer.provideMerge(orchestrationReactorLayer),
       Layer.provide(persistenceLayer),
       Layer.provideMerge(ServerSettingsService.layerTest()),
+      Layer.provideMerge(ProjectSkillsLive),
       Layer.provideMerge(ServerConfig.layerTest(workspaceDir, rootDir)),
       Layer.provideMerge(NodeServices.layer),
     );

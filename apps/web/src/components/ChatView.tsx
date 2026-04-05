@@ -4,6 +4,7 @@ import {
   type ClaudeCodeEffort,
   type MessageId,
   type ModelSelection,
+  type ProjectSkillName,
   type ProjectScript,
   type ProviderKind,
   type ProjectEntry,
@@ -28,7 +29,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { gitStatusQueryOptions } from "~/lib/gitReactQuery";
-import { projectSearchEntriesQueryOptions } from "~/lib/projectReactQuery";
+import {
+  projectSearchEntriesQueryOptions,
+  projectSkillsQueryOptions,
+} from "~/lib/projectReactQuery";
 import { isElectron } from "../env";
 import { parseDiffRouteSearch, stripDiffSearchParams } from "../diffRouteSearch";
 import {
@@ -158,6 +162,7 @@ import { buildExpandedImagePreview, ExpandedImagePreview } from "./chat/Expanded
 import { AVAILABLE_PROVIDER_OPTIONS, ProviderModelPicker } from "./chat/ProviderModelPicker";
 import { ComposerCommandItem, ComposerCommandMenu } from "./chat/ComposerCommandMenu";
 import { ComposerPendingApprovalActions } from "./chat/ComposerPendingApprovalActions";
+import { ComposerSkillPicker } from "./chat/ComposerSkillPicker";
 import { CompactComposerControlsMenu } from "./chat/CompactComposerControlsMenu";
 import { ComposerPrimaryActions } from "./chat/ComposerPrimaryActions";
 import { ComposerPendingApprovalPanel } from "./chat/ComposerPendingApprovalPanel";
@@ -596,6 +601,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const prompt = composerDraft.prompt;
   const composerImages = composerDraft.images;
   const composerTerminalContexts = composerDraft.terminalContexts;
+  const selectedSkillNames = composerDraft.selectedSkills;
   const composerSendState = useMemo(
     () =>
       deriveComposerSendState({
@@ -627,6 +633,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const setComposerDraftTerminalContexts = useComposerDraftStore(
     (store) => store.setTerminalContexts,
   );
+  const setComposerDraftSelectedSkills = useComposerDraftStore((store) => store.setSelectedSkills);
   const clearComposerDraftPersistedAttachments = useComposerDraftStore(
     (store) => store.clearPersistedAttachments,
   );
@@ -1441,6 +1448,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
       limit: 80,
     }),
   );
+  const projectSkillsQuery = useQuery(
+    projectSkillsQueryOptions({
+      cwd: activeProject?.cwd ?? null,
+      enabled: activeProject !== undefined,
+    }),
+  );
+  const projectSkills = projectSkillsQuery.data?.skills ?? [];
+  const projectSkillIssuesCount = projectSkillsQuery.data?.issues.length ?? 0;
   const workspaceEntries = workspaceEntriesQuery.data?.entries ?? EMPTY_PROJECT_ENTRIES;
   const composerMenuItems = useMemo<ComposerCommandItem[]>(() => {
     if (!composerTrigger) return [];
@@ -1995,6 +2010,23 @@ export default function ChatView({ threadId }: ChatViewProps) {
       runtimeMode === "full-access" ? "approval-required" : "full-access",
     );
   }, [handleRuntimeModeChange, runtimeMode]);
+  const setSelectedSkills = useCallback(
+    (skillNames: ReadonlyArray<ProjectSkillName>) => {
+      setComposerDraftSelectedSkills(threadId, [...skillNames]);
+      scheduleComposerFocus();
+    },
+    [scheduleComposerFocus, setComposerDraftSelectedSkills, threadId],
+  );
+  const toggleSelectedSkill = useCallback(
+    (skillName: ProjectSkillName) => {
+      setSelectedSkills(
+        selectedSkillNames.includes(skillName)
+          ? selectedSkillNames.filter((entry) => entry !== skillName)
+          : [...selectedSkillNames, skillName],
+      );
+    },
+    [selectedSkillNames, setSelectedSkills],
+  );
   const togglePlanSidebar = useCallback(() => {
     setPlanSidebarOpen((open) => {
       if (open) {
@@ -3086,6 +3118,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           attachments: turnAttachments,
         },
         modelSelection: selectedModelSelection,
+        ...(selectedSkillNames.length > 0 ? { skills: selectedSkillNames } : {}),
         titleSeed: title,
         runtimeMode,
         interactionMode,
@@ -4243,6 +4276,15 @@ export default function ChatView({ threadId }: ChatViewProps) {
                               }
                             : {})}
                           onProviderModelChange={onProviderModelSelect}
+                        />
+
+                        <ComposerSkillPicker
+                          compact={isComposerFooterCompact}
+                          skills={projectSkills}
+                          selectedSkillNames={selectedSkillNames}
+                          issuesCount={projectSkillIssuesCount}
+                          disabled={isConnecting || isComposerApprovalState}
+                          onToggleSkill={toggleSelectedSkill}
                         />
 
                         {isComposerFooterCompact ? (

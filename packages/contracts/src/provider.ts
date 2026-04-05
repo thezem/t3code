@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { TrimmedNonEmptyString } from "./baseSchemas";
+import { ProjectSkillName, TrimmedNonEmptyString } from "./baseSchemas";
 import {
   ApprovalRequestId,
   EventId,
@@ -68,6 +68,7 @@ export const ProviderSendTurnInput = Schema.Struct({
   ),
   modelSelection: Schema.optional(ModelSelection),
   interactionMode: Schema.optional(ProviderInteractionMode),
+  skills: Schema.optional(Schema.Array(ProjectSkillName)),
 });
 export type ProviderSendTurnInput = typeof ProviderSendTurnInput.Type;
 

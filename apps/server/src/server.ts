@@ -47,6 +47,7 @@ import { WorkspaceEntriesLive } from "./workspace/Layers/WorkspaceEntries";
 import { WorkspaceFileSystemLive } from "./workspace/Layers/WorkspaceFileSystem";
 import { WorkspacePathsLive } from "./workspace/Layers/WorkspacePaths";
 import { ProjectSetupScriptRunnerLive } from "./project/Layers/ProjectSetupScriptRunner";
+import { ProjectSkillsLive } from "./project/Layers/ProjectSkills";
 import { ObservabilityLive } from "./observability/Layers/Observability";
 
 const PtyAdapterLive = Layer.unwrap(
@@ -178,6 +179,7 @@ const TerminalLayerLive = TerminalManagerLive.pipe(Layer.provide(PtyAdapterLive)
 const WorkspaceLayerLive = Layer.mergeAll(
   WorkspacePathsLive,
   WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive)),
+  ProjectSkillsLive,
   WorkspaceFileSystemLive.pipe(
     Layer.provide(WorkspacePathsLive),
     Layer.provide(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),

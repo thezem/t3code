@@ -11,6 +11,7 @@ import {
   OrchestrationGetSnapshotError,
   OrchestrationGetTurnDiffError,
   ORCHESTRATION_WS_METHODS,
+  ProjectListSkillsError,
   ProjectReadFileError,
   ProjectSearchEntriesError,
   ProjectWriteFileError,
@@ -47,6 +48,7 @@ import { WorkspaceEntries } from "./workspace/Services/WorkspaceEntries";
 import { WorkspaceFileSystem } from "./workspace/Services/WorkspaceFileSystem";
 import { WorkspacePathOutsideRootError } from "./workspace/Services/WorkspacePaths";
 import { ProjectSetupScriptRunner } from "./project/Services/ProjectSetupScriptRunner";
+import { ProjectSkills } from "./project/Services/ProjectSkills";
 
 const WsRpcLayer = WsRpcGroup.toLayer(
   Effect.gen(function* () {
@@ -66,6 +68,7 @@ const WsRpcLayer = WsRpcGroup.toLayer(
     const workspaceEntries = yield* WorkspaceEntries;
     const workspaceFileSystem = yield* WorkspaceFileSystem;
     const projectSetupScriptRunner = yield* ProjectSetupScriptRunner;
+    const projectSkills = yield* ProjectSkills;
 
     const serverCommandId = (tag: string) =>
       CommandId.makeUnsafe(`server:${tag}:${crypto.randomUUID()}`);
@@ -569,6 +572,20 @@ const WsRpcLayer = WsRpcGroup.toLayer(
                 cause,
               });
             }),
+          ),
+          { "rpc.aggregate": "workspace" },
+        ),
+      [WS_METHODS.projectsListSkills]: (input) =>
+        observeRpcEffect(
+          WS_METHODS.projectsListSkills,
+          projectSkills.listSkills(input).pipe(
+            Effect.mapError(
+              (cause) =>
+                new ProjectListSkillsError({
+                  message: `Failed to list workspace skills: ${cause.detail}`,
+                  cause,
+                }),
+            ),
           ),
           { "rpc.aggregate": "workspace" },
         ),

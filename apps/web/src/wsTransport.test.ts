@@ -300,23 +300,23 @@ describe("WsTransport", () => {
     setSlowRpcAckThresholdMsForTests(slowAckThresholdMs);
     const transport = new WsTransport("ws://localhost:3020");
 
-      const requestPromise = transport.request((client) =>
-        client[WS_METHODS.serverUpsertKeybinding]({
-          command: "terminal.toggle",
-          key: "ctrl+k",
-        }),
-      );
+    const requestPromise = transport.request((client) =>
+      client[WS_METHODS.serverUpsertKeybinding]({
+        command: "terminal.toggle",
+        key: "ctrl+k",
+      }),
+    );
 
-      await waitFor(() => {
-        expect(sockets).toHaveLength(1);
-      });
+    await waitFor(() => {
+      expect(sockets).toHaveLength(1);
+    });
 
-      const socket = getSocket();
-      socket.open();
+    const socket = getSocket();
+    socket.open();
 
-      await waitFor(() => {
-        expect(socket.sent).toHaveLength(1);
-      });
+    await waitFor(() => {
+      expect(socket.sent).toHaveLength(1);
+    });
 
     const requestMessage = JSON.parse(socket.sent[0] ?? "{}") as { id: string };
     await waitFor(() => {
@@ -328,25 +328,25 @@ describe("WsTransport", () => {
       ]);
     }, 1_000);
 
-      socket.serverMessage(
-        JSON.stringify({
-          _tag: "Exit",
-          requestId: requestMessage.id,
-          exit: {
-            _tag: "Success",
-            value: {
-              keybindings: [],
-              issues: [],
-            },
+    socket.serverMessage(
+      JSON.stringify({
+        _tag: "Exit",
+        requestId: requestMessage.id,
+        exit: {
+          _tag: "Success",
+          value: {
+            keybindings: [],
+            issues: [],
           },
-        }),
-      );
+        },
+      }),
+    );
 
-      await expect(requestPromise).resolves.toEqual({
-        keybindings: [],
-        issues: [],
-      });
-      expect(getSlowRpcAckRequests()).toEqual([]);
+    await expect(requestPromise).resolves.toEqual({
+      keybindings: [],
+      issues: [],
+    });
+    expect(getSlowRpcAckRequests()).toEqual([]);
 
     await transport.dispose();
   }, 5_000);
