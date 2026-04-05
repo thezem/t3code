@@ -8,7 +8,7 @@ import {
 import {
   getSlowRpcAckRequests,
   resetRequestLatencyStateForTests,
-  SLOW_RPC_ACK_THRESHOLD_MS,
+  setSlowRpcAckThresholdMsForTests,
 } from "./rpc/requestLatencyState";
 import {
   getWsConnectionStatus,
@@ -295,10 +295,10 @@ describe("WsTransport", () => {
     await transport.dispose();
   });
 
-  it(
-    "marks unary requests as slow until the first server ack arrives",
-    async () => {
-      const transport = new WsTransport("ws://localhost:3020");
+  it("marks unary requests as slow until the first server ack arrives", async () => {
+    const slowAckThresholdMs = 25;
+    setSlowRpcAckThresholdMsForTests(slowAckThresholdMs);
+    const transport = new WsTransport("ws://localhost:3020");
 
       const requestPromise = transport.request((client) =>
         client[WS_METHODS.serverUpsertKeybinding]({
@@ -318,15 +318,15 @@ describe("WsTransport", () => {
         expect(socket.sent).toHaveLength(1);
       });
 
-      const requestMessage = JSON.parse(socket.sent[0] ?? "{}") as { id: string };
-      await waitFor(() => {
-        expect(getSlowRpcAckRequests()).toMatchObject([
-          {
-            requestId: requestMessage.id,
-            tag: WS_METHODS.serverUpsertKeybinding,
-          },
-        ]);
-      }, SLOW_RPC_ACK_THRESHOLD_MS + 2_000);
+    const requestMessage = JSON.parse(socket.sent[0] ?? "{}") as { id: string };
+    await waitFor(() => {
+      expect(getSlowRpcAckRequests()).toMatchObject([
+        {
+          requestId: requestMessage.id,
+          tag: WS_METHODS.serverUpsertKeybinding,
+        },
+      ]);
+    }, 1_000);
 
       socket.serverMessage(
         JSON.stringify({
@@ -348,10 +348,8 @@ describe("WsTransport", () => {
       });
       expect(getSlowRpcAckRequests()).toEqual([]);
 
-      await transport.dispose();
-    },
-    SLOW_RPC_ACK_THRESHOLD_MS + 5_000,
-  );
+    await transport.dispose();
+  }, 5_000);
 
   it("sends unary RPC requests and resolves successful exits", async () => {
     const transport = new WsTransport("ws://localhost:3020");
