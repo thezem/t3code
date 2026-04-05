@@ -1036,6 +1036,7 @@ function startBackend(): void {
       `${JSON.stringify({
         mode: "desktop",
         noBrowser: true,
+        host: "0.0.0.0",
         port: backendPort,
         t3Home: BASE_DIR,
         authToken: backendAuthToken,

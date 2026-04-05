@@ -126,6 +126,7 @@ import {
   useThreadJumpHintVisibility,
 } from "./Sidebar.logic";
 import { SidebarUpdatePill } from "./sidebar/SidebarUpdatePill";
+import { SidebarBrowserPill } from "./sidebar/SidebarBrowserPill";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useSettings, useUpdateSettings } from "~/hooks/useSettings";
 import { useServerKeybindings } from "../rpc/serverState";
@@ -2171,6 +2172,7 @@ export default function Sidebar() {
 
           <SidebarSeparator />
           <SidebarFooter className="p-2">
+            <SidebarBrowserPill />
             <SidebarUpdatePill />
             <SidebarMenu>
               <SidebarMenuItem>

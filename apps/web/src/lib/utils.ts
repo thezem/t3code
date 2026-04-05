@@ -73,3 +73,22 @@ export const resolveServerUrl = (options?: {
   }
   return parsedUrl.toString();
 };
+
+export function resolveDesktopBrowserUrl(input?: { wsUrl?: string | null }): string | null {
+  const wsUrl =
+    input?.wsUrl ?? (typeof window === "undefined" ? null : window.desktopBridge?.getWsUrl());
+  if (typeof wsUrl !== "string" || wsUrl.length === 0) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(wsUrl);
+    parsedUrl.protocol = parsedUrl.protocol === "wss:" ? "https:" : "http:";
+    parsedUrl.pathname = "/";
+    parsedUrl.search = "";
+    parsedUrl.hash = "";
+    return parsedUrl.toString();
+  } catch {
+    return null;
+  }
+}
