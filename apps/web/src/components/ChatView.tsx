@@ -1579,6 +1579,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
   );
   const activeProjectCwd = activeProject?.cwd ?? null;
   const activeThreadWorktreePath = activeThread?.worktreePath ?? null;
+  const activeWorkspaceRoot = activeThreadWorktreePath ?? activeProjectCwd ?? undefined;
   const activeTerminalLaunchContext =
     terminalLaunchContext?.threadId === activeThreadId
       ? terminalLaunchContext
@@ -4117,7 +4118,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                 markdownCwd={gitCwd ?? undefined}
                 resolvedTheme={resolvedTheme}
                 timestampFormat={timestampFormat}
-                workspaceRoot={activeProject?.cwd ?? undefined}
+                workspaceRoot={activeWorkspaceRoot}
               />
             </div>
 
@@ -4552,7 +4553,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
             activePlan={activePlan}
             activeProposedPlan={sidebarProposedPlan}
             markdownCwd={gitCwd ?? undefined}
-            workspaceRoot={activeProject?.cwd ?? undefined}
+            workspaceRoot={activeWorkspaceRoot}
             timestampFormat={timestampFormat}
             onClose={() => {
               setPlanSidebarOpen(false);
