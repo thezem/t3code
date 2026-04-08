@@ -193,6 +193,7 @@ interface CreateManagerOptions {
   processKillGraceMs?: number;
   maxRetainedInactiveSessions?: number;
   ptyAdapter?: FakePtyAdapter;
+  terminalPlatform?: NodeJS.Platform;
 }
 
 interface ManagerFixture {
@@ -221,6 +222,7 @@ const createManager = (
         logsDir,
         historyLineLimit,
         ptyAdapter,
+        terminalPlatform: options.terminalPlatform ?? "linux",
         ...(options.shellResolver !== undefined ? { shellResolver: options.shellResolver } : {}),
         ...(options.subprocessChecker !== undefined
           ? { subprocessChecker: options.subprocessChecker }
@@ -763,6 +765,26 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
 
       assert.equal(process.killSignals[0], "SIGTERM");
       expect(process.killSignals).toContain("SIGKILL");
+    }).pipe(Effect.provide(TestClock.layer())),
+  );
+
+  it.effect("uses plain PTY kill on Windows without SIGKILL escalation", () =>
+    Effect.gen(function* () {
+      const { manager, ptyAdapter } = yield* createManager(5, {
+        processKillGraceMs: 10,
+        terminalPlatform: "win32",
+      });
+      yield* manager.open(openInput());
+      const process = ptyAdapter.processes[0];
+      expect(process).toBeDefined();
+      if (!process) return;
+
+      const closeFiber = yield* manager.close({ threadId: "thread-1" }).pipe(Effect.forkScoped);
+      yield* Effect.yieldNow;
+      yield* TestClock.adjust("10 millis");
+      yield* Fiber.join(closeFiber);
+
+      expect(process.killSignals).toEqual([undefined]);
     }).pipe(Effect.provide(TestClock.layer())),
   );
 

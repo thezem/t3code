@@ -650,6 +650,7 @@ interface TerminalManagerOptions {
   subprocessPollIntervalMs?: number;
   processKillGraceMs?: number;
   maxRetainedInactiveSessions?: number;
+  terminalPlatform?: NodeJS.Platform;
 }
 
 const makeTerminalManager = Effect.fn("makeTerminalManager")(function* () {
@@ -676,6 +677,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
     const processKillGraceMs = options.processKillGraceMs ?? DEFAULT_PROCESS_KILL_GRACE_MS;
     const maxRetainedInactiveSessions =
       options.maxRetainedInactiveSessions ?? DEFAULT_MAX_RETAINED_INACTIVE_SESSIONS;
+    const terminalPlatform = options.terminalPlatform ?? process.platform;
 
     yield* fileSystem.makeDirectory(logsDir, { recursive: true }).pipe(Effect.orDie);
 
@@ -784,8 +786,9 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
       threadId: string,
       terminalId: string,
     ) {
+      const terminateSignal = terminalPlatform === "win32" ? undefined : "SIGTERM";
       const terminated = yield* Effect.try({
-        try: () => process.kill("SIGTERM"),
+        try: () => process.kill(terminateSignal),
         catch: (cause) =>
           new TerminalProcessSignalError({
             message: "Failed to send SIGTERM to terminal process.",
@@ -804,6 +807,12 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
         ),
       );
       if (!terminated) {
+        return;
+      }
+
+      // Windows PTYs do not reliably support POSIX signal names. A plain kill() is the
+      // supported termination path there, so do not attempt a second signal-based escalation.
+      if (terminalPlatform === "win32") {
         return;
       }
 

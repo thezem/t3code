@@ -2122,6 +2122,40 @@ it.layer(TestLayer)("git integration", (it) => {
       }),
     );
 
+    it.effect("statusDetails falls back to local status when upstream refresh fails", () =>
+      Effect.gen(function* () {
+        const remote = yield* makeTmpDir();
+        const source = yield* makeTmpDir();
+        yield* git(remote, ["init", "--bare"]);
+
+        const { initialBranch } = yield* initRepoWithCommit(source);
+        yield* git(source, ["remote", "add", "origin", remote]);
+        yield* git(source, ["push", "-u", "origin", initialBranch]);
+
+        const realCore = yield* GitCore;
+        const core = yield* makeIsolatedGitCore((input) => {
+          if (input.operation === "GitCore.fetchUpstreamRefForStatus") {
+            return Effect.fail(
+              new GitCommandError({
+                operation: input.operation,
+                command: `git ${input.args.join(" ")}`,
+                cwd: input.cwd,
+                detail: "git fetch timed out.",
+              }),
+            );
+          }
+          return realCore.execute(input);
+        });
+
+        const details = yield* core.statusDetails(source);
+        expect(details.isRepo).toBe(true);
+        expect(details.hasUpstream).toBe(true);
+        expect(details.upstreamRef).toBe(`origin/${initialBranch}`);
+        expect(details.aheadCount).toBe(0);
+        expect(details.behindCount).toBe(0);
+      }),
+    );
+
     it.effect("top-level pullGitBranch rejects when no upstream exists", () =>
       Effect.gen(function* () {
         const tmp = yield* makeTmpDir();
