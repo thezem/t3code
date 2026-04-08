@@ -28,11 +28,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { gitStatusQueryOptions } from "~/lib/gitReactQuery";
 import {
   projectSearchEntriesQueryOptions,
   projectSkillsQueryOptions,
 } from "~/lib/projectReactQuery";
+import { useGitStatus } from "~/lib/gitStatusState";
 import { isElectron } from "../env";
 import { parseDiffRouteSearch, stripDiffSearchParams } from "../diffRouteSearch";
 import {
@@ -66,6 +66,7 @@ import {
   buildPendingUserInputAnswers,
   derivePendingUserInputProgress,
   setPendingUserInputCustomAnswer,
+  togglePendingUserInputOptionSelection,
   type PendingUserInputDraftAnswer,
 } from "../pendingUserInput";
 import { useStore } from "../store";
@@ -1432,7 +1433,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
     (debouncerState) => ({ isPending: debouncerState.isPending }),
   );
   const effectivePathQuery = pathTriggerQuery.length > 0 ? debouncedPathQuery : "";
-  const gitStatusQuery = useQuery(gitStatusQueryOptions(gitCwd));
+  const gitStatusQuery = useGitStatus(gitCwd);
   const keybindings = useServerKeybindings();
   const availableEditors = useServerAvailableEditors();
   const modelOptionsByProvider = useMemo(
@@ -1509,7 +1510,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           type: "slash-command",
           command: "default",
           label: "/default",
-          description: "Switch this thread back to normal chat mode",
+          description: "Switch this thread back to normal build mode",
         },
       ] satisfies ReadonlyArray<Extract<ComposerCommandItem, { type: "slash-command" }>>;
       const skillItems = projectSkills.map((skill) => ({
@@ -3287,19 +3288,24 @@ export default function ChatView({ threadId }: ChatViewProps) {
     [activePendingUserInput],
   );
 
-  const onSelectActivePendingUserInputOption = useCallback(
+  const onToggleActivePendingUserInputOption = useCallback(
     (questionId: string, optionLabel: string) => {
       if (!activePendingUserInput) {
+        return;
+      }
+      const question = activePendingUserInput.questions.find((entry) => entry.id === questionId);
+      if (!question) {
         return;
       }
       setPendingUserInputAnswersByRequestId((existing) => ({
         ...existing,
         [activePendingUserInput.requestId]: {
           ...existing[activePendingUserInput.requestId],
-          [questionId]: {
-            selectedOptionLabel: optionLabel,
-            customAnswer: "",
-          },
+          [questionId]: togglePendingUserInputOptionSelection(
+            question,
+            existing[activePendingUserInput.requestId]?.[questionId],
+            optionLabel,
+          ),
         },
       }));
       promptRef.current = "";
@@ -4145,7 +4151,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
             <form
               ref={composerFormRef}
               onSubmit={onSend}
-              className="mx-auto w-full min-w-0 max-w-[52rem]"
+              className="mx-auto w-full min-w-0 max-w-208"
               data-chat-composer-form="true"
             >
               <div
@@ -4179,7 +4185,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                         respondingRequestIds={respondingRequestIds}
                         answers={activePendingDraftAnswers}
                         questionIndex={activePendingQuestionIndex}
-                        onSelectOption={onSelectActivePendingUserInputOption}
+                        onToggleOption={onToggleActivePendingUserInputOption}
                         onAdvance={onAdvanceActivePendingUserInput}
                       />
                     </div>
@@ -4401,13 +4407,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
                               onClick={toggleInteractionMode}
                               title={
                                 interactionMode === "plan"
-                                  ? "Plan mode — click to return to normal chat mode"
+                                  ? "Plan mode — click to return to normal build mode"
                                   : "Default mode — click to enter plan mode"
                               }
                             >
                               <BotIcon />
                               <span className="sr-only sm:not-sr-only">
-                                {interactionMode === "plan" ? "Plan" : "Chat"}
+                                {interactionMode === "plan" ? "Plan" : "Build"}
                               </span>
                             </Button>
 
