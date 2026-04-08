@@ -15,9 +15,9 @@ The **Codex App Server** is a JSON-RPC 2.0 protocol interface that enables deep 
 
 ## Transports
 
-| Transport | Flag | Notes |
-|-----------|------|-------|
-| **stdio** (default) | `--listen stdio://` | Newline-delimited JSON |
+| Transport                    | Flag                    | Notes                                    |
+| ---------------------------- | ----------------------- | ---------------------------------------- |
+| **stdio** (default)          | `--listen stdio://`     | Newline-delimited JSON                   |
 | **WebSocket** (experimental) | `--listen ws://IP:PORT` | One JSON-RPC message per WebSocket frame |
 
 In WebSocket mode, bounded queues reject overloaded requests with error code `-32001` ("Server overloaded; retry later").
@@ -57,6 +57,7 @@ codex app-server generate-json-schema --out ./schemas
 ```
 
 **Connection sequence:**
+
 1. Send `initialize` request with client metadata
 2. Send `initialized` notification
 3. Call `thread/start` or `thread/resume`
@@ -67,11 +68,11 @@ codex app-server generate-json-schema --out ./schemas
 
 ## Core Primitives
 
-| Primitive | Description |
-|-----------|-------------|
-| **Thread** | A conversation between user and agent, containing turns |
-| **Turn** | A single user request and resulting agent work, containing items |
-| **Item** | A unit of input/output (messages, commands, file changes, tool calls) |
+| Primitive  | Description                                                           |
+| ---------- | --------------------------------------------------------------------- |
+| **Thread** | A conversation between user and agent, containing turns               |
+| **Turn**   | A single user request and resulting agent work, containing items      |
+| **Item**   | A unit of input/output (messages, commands, file changes, tool calls) |
 
 ---
 
@@ -117,72 +118,72 @@ The `initialize` request **must be sent first** on any connection. The server re
 
 ### Thread Management
 
-| Method | Description |
-|--------|-------------|
-| `thread/start` | Create new thread |
-| `thread/resume` | Reopen existing thread |
-| `thread/fork` | Branch thread into new id |
-| `thread/read` | Read stored thread without resuming |
-| `thread/list` | Page through threads with filters |
-| `thread/loaded/list` | List threads in memory |
-| `thread/name/set` | Set thread title |
-| `thread/archive` | Move to archived directory |
-| `thread/unarchive` | Restore from archive |
-| `thread/unsubscribe` | Remove connection subscription |
-| `thread/compact/start` | Trigger history compaction |
-| `thread/rollback` | Remove last N turns |
-| `thread/status/changed` | Status change notification |
+| Method                  | Description                         |
+| ----------------------- | ----------------------------------- |
+| `thread/start`          | Create new thread                   |
+| `thread/resume`         | Reopen existing thread              |
+| `thread/fork`           | Branch thread into new id           |
+| `thread/read`           | Read stored thread without resuming |
+| `thread/list`           | Page through threads with filters   |
+| `thread/loaded/list`    | List threads in memory              |
+| `thread/name/set`       | Set thread title                    |
+| `thread/archive`        | Move to archived directory          |
+| `thread/unarchive`      | Restore from archive                |
+| `thread/unsubscribe`    | Remove connection subscription      |
+| `thread/compact/start`  | Trigger history compaction          |
+| `thread/rollback`       | Remove last N turns                 |
+| `thread/status/changed` | Status change notification          |
 
 ### Turn Management
 
-| Method | Description |
-|--------|-------------|
-| `turn/start` | Begin user request and agent work |
-| `turn/steer` | Append input to active turn |
-| `turn/interrupt` | Cancel in-flight turn |
+| Method           | Description                       |
+| ---------------- | --------------------------------- |
+| `turn/start`     | Begin user request and agent work |
+| `turn/steer`     | Append input to active turn       |
+| `turn/interrupt` | Cancel in-flight turn             |
 
 ### Model & Feature Discovery
 
-| Method | Description |
-|--------|-------------|
-| `model/list` | List available models with capabilities |
-| `experimentalFeature/list` | List feature flags with lifecycle |
-| `collaborationMode/list` | List mode presets |
+| Method                     | Description                             |
+| -------------------------- | --------------------------------------- |
+| `model/list`               | List available models with capabilities |
+| `experimentalFeature/list` | List feature flags with lifecycle       |
+| `collaborationMode/list`   | List mode presets                       |
 
 ### Configuration & Skills
 
-| Method | Description |
-|--------|-------------|
-| `skills/list` | List available skills |
-| `skills/config/write` | Enable/disable skills |
-| `plugin/list` | List plugin marketplaces |
-| `plugin/read` | Read plugin details |
-| `app/list` | List available apps/connectors |
+| Method                | Description                    |
+| --------------------- | ------------------------------ |
+| `skills/list`         | List available skills          |
+| `skills/config/write` | Enable/disable skills          |
+| `plugin/list`         | List plugin marketplaces       |
+| `plugin/read`         | Read plugin details            |
+| `app/list`            | List available apps/connectors |
 
 ### Command Execution
 
-| Method | Description |
-|--------|-------------|
-| `command/exec` | Run single command in sandbox |
-| `command/exec/write` | Write stdin to running session |
-| `command/exec/resize` | Resize PTY session |
-| `command/exec/terminate` | End running session |
+| Method                   | Description                    |
+| ------------------------ | ------------------------------ |
+| `command/exec`           | Run single command in sandbox  |
+| `command/exec/write`     | Write stdin to running session |
+| `command/exec/resize`    | Resize PTY session             |
+| `command/exec/terminate` | End running session            |
 
 ### Advanced Operations
 
-| Method | Description |
-|--------|-------------|
-| `review/start` | Invoke reviewer |
-| `tool/requestUserInput` | Prompt user for input |
-| `mcpServer/oauth/login` | Start OAuth flow |
-| `config/mcpServer/reload` | Reload MCP servers |
-| `mcpServerStatus/list` | List MCP servers and tools |
-| `windowsSandbox/setupStart` | Trigger Windows sandbox setup |
-| `configRequirements/read` | Read admin requirements |
-| `config/read` | Fetch effective configuration |
-| `config/value/write` | Write config key/value |
-| `config/batchWrite` | Atomic config edits |
-| `fs/*` | Filesystem operations (read, write, directory, metadata) |
+| Method                      | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `review/start`              | Invoke reviewer                                          |
+| `tool/requestUserInput`     | Prompt user for input                                    |
+| `mcpServer/oauth/login`     | Start OAuth flow                                         |
+| `config/mcpServer/reload`   | Reload MCP servers                                       |
+| `mcpServerStatus/list`      | List MCP servers and tools                               |
+| `windowsSandbox/setupStart` | Trigger Windows sandbox setup                            |
+| `configRequirements/read`   | Read admin requirements                                  |
+| `config/read`               | Fetch effective configuration                            |
+| `config/value/write`        | Write config key/value                                   |
+| `config/batchWrite`         | Atomic config edits                                      |
+| `fs/*`                      | Filesystem operations (read, write, directory, metadata) |
 
 ---
 
@@ -265,6 +266,7 @@ Returns thread data without loading into memory or emitting `thread/started`.
 ```
 
 Filter options:
+
 - `modelProviders` — Restrict to specific providers
 - `sourceKinds` — Filter by source (`cli`, `vscode`, `exec`, `appServer`, etc.)
 - `archived` — Include archived threads only
@@ -311,12 +313,12 @@ Removes last N turns from memory and persists rollback marker.
 
 ### User Input Item Types
 
-| Type | Shape |
-|------|-------|
-| Text | `{ "type": "text", "text": "Explain this diff" }` |
-| Image URL | `{ "type": "image", "url": "https://..." }` |
-| Local image | `{ "type": "localImage", "path": "/tmp/screenshot.png" }` |
-| Skill | `{ "type": "skill", "name": "skill-creator", "path": "/path/SKILL.md" }` |
+| Type        | Shape                                                                    |
+| ----------- | ------------------------------------------------------------------------ |
+| Text        | `{ "type": "text", "text": "Explain this diff" }`                        |
+| Image URL   | `{ "type": "image", "url": "https://..." }`                              |
+| Local image | `{ "type": "localImage", "path": "/tmp/screenshot.png" }`                |
+| Skill       | `{ "type": "skill", "name": "skill-creator", "path": "/path/SKILL.md" }` |
 
 ### Start Turn
 
@@ -448,6 +450,7 @@ Use when server process is already sandboxed. `networkAccess`: `"restricted"` (d
 ```
 
 Response fields per model:
+
 - `supportedReasoningEfforts` — Effort options
 - `defaultReasoningEffort` — Suggested default
 - `upgrade` — Recommended upgrade model id
@@ -471,6 +474,7 @@ The server sends **server-initiated** JSON-RPC requests to clients for approval 
 5. `item/completed` — final status
 
 **Decisions:**
+
 - `"accept"`
 - `"acceptForSession"`
 - `"decline"`
@@ -499,60 +503,61 @@ When `networkApprovalContext` is present in a command approval, the prompt targe
 
 ### Thread Events
 
-| Notification | Description |
-|-------------|-------------|
-| `thread/started` | New thread created |
-| `thread/archived` | Thread moved to archive |
-| `thread/unarchived` | Thread restored |
-| `thread/closed` | Thread unloaded from memory |
+| Notification            | Description                              |
+| ----------------------- | ---------------------------------------- |
+| `thread/started`        | New thread created                       |
+| `thread/archived`       | Thread moved to archive                  |
+| `thread/unarchived`     | Thread restored                          |
+| `thread/closed`         | Thread unloaded from memory              |
 | `thread/status/changed` | Status transition (`threadId`, `status`) |
 
 ### Turn Events
 
-| Notification | Description |
-|-------------|-------------|
-| `turn/started` | User request initiated |
-| `turn/completed` | Turn finished (`status`: completed, interrupted, failed) |
-| `turn/diff/updated` | Latest unified diff across file changes |
-| `turn/plan/updated` | Agent plan updates (`step`, `status`) |
-| `thread/tokenUsage/updated` | Token usage updates |
+| Notification                | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `turn/started`              | User request initiated                                   |
+| `turn/completed`            | Turn finished (`status`: completed, interrupted, failed) |
+| `turn/diff/updated`         | Latest unified diff across file changes                  |
+| `turn/plan/updated`         | Agent plan updates (`step`, `status`)                    |
+| `thread/tokenUsage/updated` | Token usage updates                                      |
 
 ### Item Events
 
 All items emit:
+
 - `item/started` — Work unit begins
 - `item/completed` — Work unit finishes (authoritative state)
 
 Item delta notifications:
 
-| Notification | Description |
-|-------------|-------------|
-| `item/agentMessage/delta` | Streamed text |
-| `item/plan/delta` | Proposed plan text |
-| `item/reasoning/summaryTextDelta` | Reasoning summaries |
-| `item/reasoning/summaryPartAdded` | Reasoning boundary |
-| `item/reasoning/textDelta` | Raw reasoning text |
+| Notification                        | Description           |
+| ----------------------------------- | --------------------- |
+| `item/agentMessage/delta`           | Streamed text         |
+| `item/plan/delta`                   | Proposed plan text    |
+| `item/reasoning/summaryTextDelta`   | Reasoning summaries   |
+| `item/reasoning/summaryPartAdded`   | Reasoning boundary    |
+| `item/reasoning/textDelta`          | Raw reasoning text    |
 | `item/commandExecution/outputDelta` | Command stdout/stderr |
-| `item/fileChange/outputDelta` | Tool response |
+| `item/fileChange/outputDelta`       | Tool response         |
 
 ### Item Types
 
-| Type | Description |
-|------|-------------|
-| `userMessage` | User input |
-| `agentMessage` | Agent reply, optional `phase` (commentary, final_answer) |
-| `plan` | Proposed plan text |
-| `reasoning` | Reasoning with `summary` and `content` |
-| `commandExecution` | Command run: `command`, `cwd`, `status`, `exitCode` |
-| `fileChange` | Proposed edits: `changes` and `status` |
-| `mcpToolCall` | MCP server tool invocation |
-| `dynamicToolCall` | Client-executed tool call |
-| `collabToolCall` | Collaboration tool call |
-| `webSearch` | Web search request |
-| `imageView` | Image viewer invocation |
-| `enteredReviewMode` | Review started |
-| `exitedReviewMode` | Review finished |
-| `contextCompaction` | History compaction completed |
+| Type                | Description                                              |
+| ------------------- | -------------------------------------------------------- |
+| `userMessage`       | User input                                               |
+| `agentMessage`      | Agent reply, optional `phase` (commentary, final_answer) |
+| `plan`              | Proposed plan text                                       |
+| `reasoning`         | Reasoning with `summary` and `content`                   |
+| `commandExecution`  | Command run: `command`, `cwd`, `status`, `exitCode`      |
+| `fileChange`        | Proposed edits: `changes` and `status`                   |
+| `mcpToolCall`       | MCP server tool invocation                               |
+| `dynamicToolCall`   | Client-executed tool call                                |
+| `collabToolCall`    | Collaboration tool call                                  |
+| `webSearch`         | Web search request                                       |
+| `imageView`         | Image viewer invocation                                  |
+| `enteredReviewMode` | Review started                                           |
+| `exitedReviewMode`  | Review finished                                          |
+| `contextCompaction` | History compaction completed                             |
 
 ---
 
@@ -562,19 +567,19 @@ When a turn fails, the server emits an error then `turn/completed` with `status:
 
 **Common `codexErrorInfo` values:**
 
-| Value | Meaning |
-|-------|---------|
-| `ContextWindowExceeded` | Context too large |
-| `UsageLimitExceeded` | Rate/quota limit hit |
-| `HttpConnectionFailed` | Network failure |
-| `ResponseStreamConnectionFailed` | Stream connection lost |
-| `ResponseStreamDisconnected` | Stream dropped mid-response |
-| `ResponseTooManyFailedAttempts` | Retry budget exhausted |
-| `BadRequest` | Malformed request |
-| `Unauthorized` | Auth failure |
-| `SandboxError` | Sandbox policy violation |
-| `InternalServerError` | Server-side error |
-| `Other` | Unclassified |
+| Value                            | Meaning                     |
+| -------------------------------- | --------------------------- |
+| `ContextWindowExceeded`          | Context too large           |
+| `UsageLimitExceeded`             | Rate/quota limit hit        |
+| `HttpConnectionFailed`           | Network failure             |
+| `ResponseStreamConnectionFailed` | Stream connection lost      |
+| `ResponseStreamDisconnected`     | Stream dropped mid-response |
+| `ResponseTooManyFailedAttempts`  | Retry budget exhausted      |
+| `BadRequest`                     | Malformed request           |
+| `Unauthorized`                   | Auth failure                |
+| `SandboxError`                   | Sandbox policy violation    |
+| `InternalServerError`            | Server-side error           |
+| `Other`                          | Unclassified                |
 
 HTTP status code forwarded in `httpStatusCode` when available.
 
@@ -698,15 +703,15 @@ Returns: `name`, `description`, `enabled`, `interface`, `dependencies`.
 
 ## Filesystem API (v2)
 
-| Method | Description |
-|--------|-------------|
-| `fs/readFile` | Read file contents |
-| `fs/writeFile` | Write to file |
-| `fs/createDirectory` | Create directory |
-| `fs/getMetadata` | File/directory metadata |
-| `fs/readDirectory` | List directory contents |
-| `fs/remove` | Delete file/directory |
-| `fs/copy` | Copy file/directory |
+| Method               | Description             |
+| -------------------- | ----------------------- |
+| `fs/readFile`        | Read file contents      |
+| `fs/writeFile`       | Write to file           |
+| `fs/createDirectory` | Create directory        |
+| `fs/getMetadata`     | File/directory metadata |
+| `fs/readDirectory`   | List directory contents |
+| `fs/remove`          | Delete file/directory   |
+| `fs/copy`            | Copy file/directory     |
 
 All operations use absolute filesystem paths.
 
@@ -717,6 +722,7 @@ All operations use absolute filesystem paths.
 Requires `capabilities.experimentalApi = true`.
 
 When a dynamic tool is invoked during a turn:
+
 1. `item/started` with `type: "dynamicToolCall"`, `status: "inProgress"`
 2. `item/tool/call` server request sent to client
 3. Client responds with content items
@@ -766,10 +772,7 @@ In `initialize`, suppress specific notifications by exact method name:
 ```json
 {
   "capabilities": {
-    "optOutNotificationMethods": [
-      "thread/started",
-      "item/agentMessage/delta"
-    ]
+    "optOutNotificationMethods": ["thread/started", "item/agentMessage/delta"]
   }
 }
 ```

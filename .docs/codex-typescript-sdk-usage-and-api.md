@@ -1,6 +1,7 @@
 # Codex TypeScript SDK — Usage & API Reference
 
 Sources:
+
 - https://developers.openai.com/codex/sdk
 - https://github.com/openai/codex/tree/main/sdk/typescript
 
@@ -11,6 +12,7 @@ Sources:
 The Codex SDK is a TypeScript library for embedding the Codex agent within applications and workflows. It wraps the `codex` CLI from `@openai/codex`, communicating via JSONL events through stdin/stdout.
 
 **Key use cases:**
+
 - Automating engineering tasks in CI/CD pipelines
 - Building agents that leverage Codex capabilities
 - Embedding code assistance in proprietary tools
@@ -72,9 +74,7 @@ await thread.run("Pick up where you left off");
 Use `runStreamed()` for real-time progress tracking. It yields structured events as they arrive instead of waiting for full execution.
 
 ```typescript
-const { events } = await thread.runStreamed(
-  "Diagnose the test failure and propose a fix"
-);
+const { events } = await thread.runStreamed("Diagnose the test failure and propose a fix");
 
 for await (const event of events) {
   switch (event.type) {
@@ -209,15 +209,15 @@ sdk/typescript/
 
 ## Key Concepts
 
-| Concept | Description |
-|---------|-------------|
-| **Thread** | A stateful conversation session. Persists in `~/.codex/sessions` |
-| **Turn** | One `run()` call — user input → agent work → result |
-| `turn.finalResponse` | Final text output from the agent |
-| `turn.items` | All structured items produced during the turn |
-| `runStreamed()` | Async generator yielding events in real-time |
-| `outputSchema` | JSON Schema to constrain agent's structured output |
-| `workingDirectory` | Sets the CWD for the agent's execution context |
-| `skipGitRepoCheck` | Bypass Git repo requirement for the working directory |
-| `config` | Passthrough CLI config as dotted key-value pairs |
-| `env` | Override environment variables passed to the CLI process |
+| Concept              | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
+| **Thread**           | A stateful conversation session. Persists in `~/.codex/sessions` |
+| **Turn**             | One `run()` call — user input → agent work → result              |
+| `turn.finalResponse` | Final text output from the agent                                 |
+| `turn.items`         | All structured items produced during the turn                    |
+| `runStreamed()`      | Async generator yielding events in real-time                     |
+| `outputSchema`       | JSON Schema to constrain agent's structured output               |
+| `workingDirectory`   | Sets the CWD for the agent's execution context                   |
+| `skipGitRepoCheck`   | Bypass Git repo requirement for the working directory            |
+| `config`             | Passthrough CLI config as dotted key-value pairs                 |
+| `env`                | Override environment variables passed to the CLI process         |

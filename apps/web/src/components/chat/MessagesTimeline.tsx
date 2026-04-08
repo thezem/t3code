@@ -21,6 +21,8 @@ import { summarizeTurnDiffStats } from "../../lib/turnDiffTree";
 import ChatMarkdown from "../ChatMarkdown";
 import {
   BotIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   CheckIcon,
   CircleAlertIcon,
   EyeIcon,
@@ -784,7 +786,10 @@ function workEntryPreview(
   workEntry: Pick<TimelineWorkEntry, "detail" | "command" | "changedFiles">,
 ) {
   if (workEntry.command) return workEntry.command;
-  if (workEntry.detail) return workEntry.detail;
+  if (workEntry.detail) {
+    const compactDetail = workEntry.detail.replace(/\s+/g, " ").trim();
+    return compactDetail.length > 96 ? `${compactDetail.slice(0, 93)}...` : compactDetail;
+  }
   if ((workEntry.changedFiles?.length ?? 0) === 0) return null;
   const [firstPath] = workEntry.changedFiles ?? [];
   if (!firstPath) return null;
@@ -847,18 +852,51 @@ const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
   workEntry: TimelineWorkEntry;
 }) {
   const { workEntry } = props;
+  const [isExpanded, setIsExpanded] = useState(false);
   const iconConfig = workToneIcon(workEntry.tone);
   const EntryIcon = workEntryIcon(workEntry);
   const heading = toolWorkEntryHeading(workEntry);
   const preview = workEntryPreview(workEntry);
   const rawCommand = workEntryRawCommand(workEntry);
   const displayText = preview ? `${heading} - ${preview}` : heading;
+  const output = workEntry.detail?.trim() ?? "";
+  const hasOutput = output.length > 0;
   const hasChangedFiles = (workEntry.changedFiles?.length ?? 0) > 0;
   const previewIsChangedFiles = hasChangedFiles && !workEntry.command && !workEntry.detail;
+  const outputPanelClassName =
+    workEntry.itemType === "command_execution" || workEntry.command
+      ? "border-zinc-800/80 bg-zinc-950 text-zinc-100"
+      : "border-border/60 bg-background/80 text-foreground/78";
+
+  const toggleExpanded = () => {
+    if (!hasOutput) {
+      return;
+    }
+    setIsExpanded((current) => !current);
+  };
 
   return (
     <div className="rounded-lg px-1 py-1">
-      <div className="flex items-center gap-2 transition-[opacity,translate] duration-200">
+      <div
+        className={cn(
+          "flex items-start gap-2 transition-[opacity,translate] duration-200",
+          hasOutput ? "cursor-pointer" : "",
+        )}
+        onClick={toggleExpanded}
+        onKeyDown={(event) => {
+          if (!hasOutput) {
+            return;
+          }
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+          toggleExpanded();
+        }}
+        role={hasOutput ? "button" : undefined}
+        tabIndex={hasOutput ? 0 : undefined}
+        aria-expanded={hasOutput ? isExpanded : undefined}
+      >
         <span
           className={cn("flex size-5 shrink-0 items-center justify-center", iconConfig.className)}
         >
@@ -906,7 +944,37 @@ const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
             </p>
           </div>
         </div>
+        {hasOutput && (
+          <button
+            type="button"
+            className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/55 transition-colors hover:text-foreground/75"
+            aria-label={isExpanded ? "Collapse command output" : "Expand command output"}
+            aria-expanded={isExpanded}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleExpanded();
+            }}
+          >
+            {isExpanded ? (
+              <ChevronDownIcon className="size-3.5" />
+            ) : (
+              <ChevronRightIcon className="size-3.5" />
+            )}
+          </button>
+        )}
       </div>
+      {hasOutput && isExpanded && (
+        <div className="mt-2 pl-6" data-testid={`work-entry-output:${workEntry.id}`}>
+          <pre
+            className={cn(
+              "max-h-64 overflow-auto rounded-lg border px-3 py-2 font-mono text-[11px] leading-4 whitespace-pre-wrap break-words",
+              outputPanelClassName,
+            )}
+          >
+            {output}
+          </pre>
+        </div>
+      )}
       {hasChangedFiles && !previewIsChangedFiles && (
         <div className="mt-1 flex flex-wrap gap-1 pl-6">
           {workEntry.changedFiles?.slice(0, 4).map((filePath) => (

@@ -32,9 +32,9 @@ function query({
   prompt,
   options,
 }: {
-  prompt: string | AsyncIterable<SDKUserMessage>
-  options?: Options
-}): Query
+  prompt: string | AsyncIterable<SDKUserMessage>;
+  options?: Options;
+}): Query;
 ```
 
 Key idea:

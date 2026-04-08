@@ -170,10 +170,10 @@ Possible shape:
 
 ```ts
 type AgentProvider = {
-  id: 'codex' | 'claude'
-  isAvailable(): Promise<boolean>
-  createClient(options): Promise<AgentClient>
-}
+  id: "codex" | "claude";
+  isAvailable(): Promise<boolean>;
+  createClient(options): Promise<AgentClient>;
+};
 ```
 
 ### `AgentClient`
@@ -188,11 +188,11 @@ Possible shape:
 
 ```ts
 type AgentClient = {
-  provider: 'codex' | 'claude'
-  getAccount(): Promise<AgentAccountState>
-  createSession(options?): Promise<AgentSession>
-  close(): Promise<void>
-}
+  provider: "codex" | "claude";
+  getAccount(): Promise<AgentAccountState>;
+  createSession(options?): Promise<AgentSession>;
+  close(): Promise<void>;
+};
 ```
 
 ### `AgentSession`
@@ -209,12 +209,12 @@ Possible shape:
 
 ```ts
 type AgentSession = {
-  id: string | null
-  run(input, options?): Promise<AgentRunResult>
-  stream(input, options?): Promise<AsyncIterable<AgentEvent>>
-  interrupt(): Promise<void>
-  close(): Promise<void>
-}
+  id: string | null;
+  run(input, options?): Promise<AgentRunResult>;
+  stream(input, options?): Promise<AsyncIterable<AgentEvent>>;
+  interrupt(): Promise<void>;
+  close(): Promise<void>;
+};
 ```
 
 ## Proposed Public API Direction
@@ -339,11 +339,11 @@ At the shared level:
 
 ```ts
 type CreateAgentOptions = {
-  provider: 'codex' | 'claude'
-  cwd?: string
-  model?: string
-  env?: Record<string, string>
-}
+  provider: "codex" | "claude";
+  cwd?: string;
+  model?: string;
+  env?: Record<string, string>;
+};
 ```
 
 Then provider-specific sub-options:
@@ -386,10 +386,10 @@ Also include raw provider payloads where useful:
 
 ```ts
 type AgentEvent = {
-  provider: 'codex' | 'claude'
-  type: string
-  raw?: unknown
-}
+  provider: "codex" | "claude";
+  type: string;
+  raw?: unknown;
+};
 ```
 
 That keeps the abstraction useful without erasing provider detail.

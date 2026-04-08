@@ -108,12 +108,18 @@ function createToolWorkEntry(input: {
   offsetSeconds: number;
   label?: string;
   detail?: string;
+  command?: string;
+  rawCommand?: string;
+  itemType?: WorkLogEntry["itemType"];
 }): WorkLogEntry {
   return {
     id: input.id,
     createdAt: isoAt(input.offsetSeconds),
     label: input.label ?? "exec_command completed",
     ...(input.detail ? { detail: input.detail } : {}),
+    ...(input.command ? { command: input.command } : {}),
+    ...(input.rawCommand ? { rawCommand: input.rawCommand } : {}),
+    ...(input.itemType ? { itemType: input.itemType } : {}),
     tone: "tool",
     toolTitle: "exec_command",
   };
@@ -808,6 +814,77 @@ describe("MessagesTimeline virtualization harness", () => {
       expect(
         Math.abs(afterExpand.actualHeightPx - afterExpand.virtualizerSizePx),
       ).toBeLessThanOrEqual(8);
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("expands a work-log entry to reveal command output", async () => {
+    const beforeMessages = createFillerMessages({
+      prefix: "before-work-output-expand",
+      startOffsetSeconds: 0,
+      pairCount: 2,
+    });
+    const afterMessages = createFillerMessages({
+      prefix: "after-work-output-expand",
+      startOffsetSeconds: 40,
+      pairCount: 8,
+    });
+    const workEntry = createToolWorkEntry({
+      id: "target-work-output-expand",
+      offsetSeconds: 12,
+      command: "bun run test --filter timeline",
+      rawCommand: "cd /repo/project && bun run test --filter timeline",
+      itemType: "command_execution",
+      detail: [
+        "PASS apps/web/src/components/chat/MessagesTimeline.virtualization.browser.tsx",
+        "  ✓ expands a work-log entry to reveal command output",
+        "",
+        "Test Files  1 passed",
+      ].join("\n"),
+    });
+    const props = createBaseTimelineProps({
+      messages: [...beforeMessages, ...afterMessages],
+      workEntries: [workEntry],
+    });
+    const mounted = await mountMessagesTimeline({ props });
+
+    try {
+      const beforeExpand = await measureTimelineRow({
+        host: mounted.host,
+        props,
+        targetRowId: workEntry.id,
+      });
+      const targetRowElement = mounted.host.querySelector<HTMLElement>(
+        `[data-timeline-row-id="${workEntry.id}"]`,
+      );
+      expect(targetRowElement, "Unable to locate target work-log row.").toBeTruthy();
+
+      const expandButton = targetRowElement?.querySelector<HTMLButtonElement>(
+        'button[aria-label="Expand command output"]',
+      );
+      expect(expandButton, 'Unable to find "Expand command output" button.').toBeTruthy();
+
+      expandButton!.click();
+      await waitForLayout();
+
+      await vi.waitFor(
+        async () => {
+          const outputPanel = mounted.host.querySelector<HTMLElement>(
+            `[data-testid="work-entry-output:${workEntry.id}"]`,
+          );
+          expect(outputPanel, "Expected work-entry output panel to render.").toBeTruthy();
+          expect(outputPanel?.textContent).toContain("Test Files  1 passed");
+
+          const afterExpand = await measureTimelineRow({
+            host: mounted.host,
+            props,
+            targetRowId: workEntry.id,
+          });
+          expect(afterExpand.actualHeightPx).toBeGreaterThan(beforeExpand.actualHeightPx + 24);
+        },
+        { timeout: 8_000, interval: 16 },
+      );
     } finally {
       await mounted.cleanup();
     }
