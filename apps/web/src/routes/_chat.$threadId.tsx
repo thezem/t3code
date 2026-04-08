@@ -41,6 +41,7 @@ const FILE_EXPLORER_DEFAULT_WIDTH = 320;
 const FILE_EXPLORER_MIN_WIDTH = 260;
 const FILE_EXPLORER_MAX_WIDTH_VW_RATIO = 0.4;
 const FILE_EXPLORER_WIDTH_STORAGE_KEY = "chat_file_explorer_width";
+const MOBILE_LAYOUT_MEDIA_QUERY = "(max-width: 767px)";
 
 const DiffPanelSheet = (props: {
   children: ReactNode;
@@ -176,6 +177,7 @@ const DiffPanelInlineSidebar = (props: {
 
 const FileViewerResizablePanel = () => {
   const { open } = useFileViewerStore();
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_MEDIA_QUERY);
   const [width, setWidth] = useState(
     () =>
       getLocalStorageItem(FILE_VIEWER_WIDTH_STORAGE_KEY, Schema.Finite) ??
@@ -242,6 +244,10 @@ const FileViewerResizablePanel = () => {
     document.body.style.removeProperty("user-select");
   }, []);
 
+  if (isMobile) {
+    return null;
+  }
+
   return (
     <div
       ref={outerRef}
@@ -267,6 +273,7 @@ const FileViewerResizablePanel = () => {
 const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
   const { threadId } = props;
   const projects = useStore((store) => store.projects);
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_MEDIA_QUERY);
   const thread = useStore((store) => store.threads.find((entry) => entry.id === threadId) ?? null);
   const draftThread = useComposerDraftStore(
     (store) => store.draftThreadsByThreadId[threadId] ?? null,
@@ -288,7 +295,6 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
   } | null>(null);
   const activeProjectId = thread?.projectId ?? draftThread?.projectId ?? null;
   const activeProjectCwd = projects.find((project) => project.id === activeProjectId)?.cwd ?? null;
-
   const handleFileClick = useCallback(
     (relativePath: string) => {
       if (activeProjectCwd) {
@@ -356,6 +362,10 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
     document.body.style.removeProperty("cursor");
     document.body.style.removeProperty("user-select");
   }, []);
+
+  if (isMobile) {
+    return null;
+  }
 
   return (
     <div
