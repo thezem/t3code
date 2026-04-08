@@ -1173,3 +1173,107 @@ describe("createDebouncedStorage", () => {
     expect(base.setItem).toHaveBeenCalledWith("key", "v2");
   });
 });
+
+describe("composerDraftStore appendMentionToPrompt", () => {
+  it("appends file mention to empty prompt", () => {
+    const { result } = useComposerDraftStore.getInitialState();
+    const threadId = ThreadId.makeUnsafe("test-thread-appends-file-mention");
+
+    useComposerDraftStore.setState((state) => {
+      state.appendMentionToPrompt(threadId, "src/index.ts");
+    });
+
+    const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("@src/index.ts ");
+  });
+
+  it("appends directory mention to empty prompt", () => {
+    const threadId = ThreadId.makeUnsafe("test-thread-appends-dir-mention");
+
+    useComposerDraftStore.setState((state) => {
+      state.appendMentionToPrompt(threadId, "src");
+    });
+
+    const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("@src ");
+  });
+
+  it("appends file mention to non-empty prompt with space", () => {
+    const threadId = ThreadId.makeUnsafe("test-thread-appends-file-with-space");
+
+    useComposerDraftStore.setState((state) => {
+      state.setPrompt(threadId, "Check this ");
+      state.appendMentionToPrompt(threadId, "src/utils.ts");
+    });
+
+    const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("Check this @src/utils.ts ");
+  });
+
+  it("appends directory mention to non-empty prompt without space", () => {
+    const threadId = ThreadId.makeUnsafe("test-thread-appends-dir-without-space");
+
+    useComposerDraftStore.setState((state) => {
+      state.setPrompt(threadId, "Check this");
+      state.appendMentionToPrompt(threadId, "components");
+    });
+
+    const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("Check this @components ");
+  });
+
+  it("does not append mention with empty threadId", () => {
+    const threadId = ThreadId.makeUnsafe("");
+
+    useComposerDraftStore.setState((state) => {
+      state.appendMentionToPrompt(threadId, "src/index.ts");
+    });
+
+    const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft).toBeUndefined();
+  });
+
+  it("does not append mention with empty relativePath", () => {
+    const threadId = ThreadId.makeUnsafe("test-thread-no-empty-mention");
+
+    useComposerDraftStore.setState((state) => {
+      state.setPrompt(threadId, "Check this ");
+      state.appendMentionToPrompt(threadId, "");
+    });
+
+    const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("Check this ");
+  });
+
+  it("handles nested paths for both files and directories", () => {
+    const threadId = ThreadId.makeUnsafe("test-thread-nested-paths");
+
+    useComposerDraftStore.setState((state) => {
+      state.appendMentionToPrompt(threadId, "src/components/ui/button.tsx");
+    });
+
+    let draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("@src/components/ui/button.tsx ");
+
+    useComposerDraftStore.setState((state) => {
+      state.setPrompt(threadId, "");
+      state.appendMentionToPrompt(threadId, "src/components/ui");
+    });
+
+    draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("@src/components/ui ");
+  });
+
+  it("allows multiple mentions in sequence", () => {
+    const threadId = ThreadId.makeUnsafe("test-thread-multiple-mentions");
+
+    useComposerDraftStore.setState((state) => {
+      state.appendMentionToPrompt(threadId, "src/utils.ts");
+      state.appendMentionToPrompt(threadId, "components");
+      state.appendMentionToPrompt(threadId, "types/index.ts");
+    });
+
+    const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
+    expect(draft?.prompt).toBe("@src/utils.ts @components @types/index.ts ");
+  });
+});

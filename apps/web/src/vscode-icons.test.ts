@@ -1,6 +1,6 @@
-import { assert, describe, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
-import { getVscodeIconUrlForEntry } from "./vscode-icons";
+import { getVscodeIconUrlForEntry, inferEntryKindFromPath, basenameOfPath } from "./vscode-icons";
 
 describe("getVscodeIconUrlForEntry", () => {
   it("uses exact filename matches from the vscode-icons manifest", () => {
@@ -48,5 +48,50 @@ describe("getVscodeIconUrlForEntry", () => {
 
     assert.isTrue(fileUrl.endsWith("/default_file.svg"));
     assert.isTrue(folderUrl.endsWith("/default_folder.svg"));
+  });
+});
+
+describe("inferEntryKindFromPath", () => {
+  it("infers file type for paths with file extensions", () => {
+    expect(inferEntryKindFromPath("src/index.ts")).toBe("file");
+    expect(inferEntryKindFromPath("README.md")).toBe("file");
+    expect(inferEntryKindFromPath("package.json")).toBe("file");
+    expect(inferEntryKindFromPath("path/to/file.test.tsx")).toBe("file");
+  });
+
+  it("infers directory type for paths without extensions", () => {
+    expect(inferEntryKindFromPath("src")).toBe("directory");
+    expect(inferEntryKindFromPath("components")).toBe("directory");
+    expect(inferEntryKindFromPath("src/components/ui")).toBe("directory");
+  });
+
+  it("infers directory type for dotfiles without extension", () => {
+    expect(inferEntryKindFromPath(".env")).toBe("directory");
+    expect(inferEntryKindFromPath(".config")).toBe("directory");
+    expect(inferEntryKindFromPath("path/to/.hidden")).toBe("directory");
+  });
+
+  it("infers file type for paths with multiple dots", () => {
+    expect(inferEntryKindFromPath(".prettierrc.json")).toBe("file");
+    expect(inferEntryKindFromPath(".env.local")).toBe("file");
+  });
+});
+
+describe("basenameOfPath", () => {
+  it("extracts basename from path", () => {
+    expect(basenameOfPath("src/index.ts")).toBe("index.ts");
+    expect(basenameOfPath("path/to/file.tsx")).toBe("file.tsx");
+    expect(basenameOfPath("README.md")).toBe("README.md");
+  });
+
+  it("extracts directory name from path", () => {
+    expect(basenameOfPath("src")).toBe("src");
+    expect(basenameOfPath("src/components")).toBe("components");
+    expect(basenameOfPath("path/to/directory")).toBe("directory");
+  });
+
+  it("handles root-level paths", () => {
+    expect(basenameOfPath("file.txt")).toBe("file.txt");
+    expect(basenameOfPath("folder")).toBe("folder");
   });
 });

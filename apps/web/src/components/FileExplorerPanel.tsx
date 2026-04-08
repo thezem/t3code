@@ -15,7 +15,7 @@ import { useTheme } from "~/hooks/useTheme";
 interface FileExplorerPanelProps {
   cwd: string | null;
   onFileClick: (absolutePath: string) => void;
-  onMentionFile: (relativePath: string) => void;
+  onMentionPath: (relativePath: string) => void;
 }
 
 const FILE_EXPLORER_LIMIT = 10_000;
@@ -23,7 +23,7 @@ const FILE_EXPLORER_INITIAL_MAX_DEPTH = 3;
 const EMPTY_ENTRIES: ProjectEntry[] = [];
 const EMPTY_EXPANDED_PATHS: string[] = [];
 
-export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplorerPanelProps) {
+export function FileExplorerPanel({ cwd, onFileClick, onMentionPath }: FileExplorerPanelProps) {
   const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
   const toggleDirectory = useFileExplorerStore((state) => state.toggleDirectory);
@@ -183,7 +183,7 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionFile }: FileExplo
             resolvedTheme={resolvedTheme}
             expandedDirectoryPaths={expandedDirectorySet}
             onFileClick={onFileClick}
-            onMentionFile={onMentionFile}
+            onMentionPath={onMentionPath}
             onToggleDirectory={handleToggleDirectory}
           />
         )}

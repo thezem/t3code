@@ -1,6 +1,7 @@
 import { ThreadId } from "@t3tools/contracts";
 import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import ChatView from "../components/ChatView";
 import { FileExplorerPanel } from "../components/FileExplorerPanel";
@@ -41,6 +42,7 @@ const FILE_EXPLORER_DEFAULT_WIDTH = 320;
 const FILE_EXPLORER_MIN_WIDTH = 260;
 const FILE_EXPLORER_MAX_WIDTH_VW_RATIO = 0.4;
 const FILE_EXPLORER_WIDTH_STORAGE_KEY = "chat_file_explorer_width";
+const FILE_EXPLORER_OPEN_STORAGE_KEY = "chat_file_explorer_open";
 const MOBILE_LAYOUT_MEDIA_QUERY = "(max-width: 767px)";
 
 const DiffPanelSheet = (props: {
@@ -285,6 +287,9 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
       getLocalStorageItem(FILE_EXPLORER_WIDTH_STORAGE_KEY, Schema.Finite) ??
       FILE_EXPLORER_DEFAULT_WIDTH,
   );
+  const [isOpen, setIsOpen] = useState(
+    () => getLocalStorageItem(FILE_EXPLORER_OPEN_STORAGE_KEY, Schema.Boolean) ?? true,
+  );
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -295,6 +300,7 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
   } | null>(null);
   const activeProjectId = thread?.projectId ?? draftThread?.projectId ?? null;
   const activeProjectCwd = projects.find((project) => project.id === activeProjectId)?.cwd ?? null;
+
   const handleFileClick = useCallback(
     (relativePath: string) => {
       if (activeProjectCwd) {
@@ -304,12 +310,20 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
     [activeProjectCwd, openFile],
   );
 
-  const handleMentionFile = useCallback(
+  const handleMentionPath = useCallback(
     (relativePath: string) => {
       appendMentionToPrompt(threadId, relativePath);
     },
     [appendMentionToPrompt, threadId],
   );
+
+  const handleToggleOpen = useCallback(() => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      setLocalStorageItem(FILE_EXPLORER_OPEN_STORAGE_KEY, next, Schema.Boolean);
+      return next;
+    });
+  }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -367,6 +381,22 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
     return null;
   }
 
+  if (!isOpen) {
+    return (
+      <div className="relative flex h-dvh flex-none flex-col items-center justify-center border-l border-border bg-card text-foreground w-12">
+        <button
+          type="button"
+          aria-label="Show file explorer"
+          title="Show file explorer"
+          className="inline-flex items-center justify-center rounded p-1 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+          onClick={handleToggleOpen}
+        >
+          <ChevronRightIcon className="size-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={outerRef}
@@ -375,15 +405,24 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
     >
       <div ref={innerRef} className="h-full" style={{ width, minWidth: width }}>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-border px-3 py-2">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
               Files
             </span>
+            <button
+              type="button"
+              aria-label="Hide file explorer"
+              title="Hide file explorer"
+              className="inline-flex items-center justify-center rounded p-0.5 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+              onClick={handleToggleOpen}
+            >
+              <ChevronLeftIcon className="size-3.5" />
+            </button>
           </div>
           <FileExplorerPanel
             cwd={activeProjectCwd}
             onFileClick={handleFileClick}
-            onMentionFile={handleMentionFile}
+            onMentionPath={handleMentionPath}
           />
         </div>
       </div>
