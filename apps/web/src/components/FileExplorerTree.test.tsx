@@ -54,7 +54,7 @@ describe("FileExplorerTree", () => {
     const onFileClick = vi.fn();
     const onMentionPath = vi.fn();
     const onToggleDirectory = vi.fn();
-    const user = userEvent.setup();
+    userEvent.setup();
 
     render(
       <FileExplorerTree

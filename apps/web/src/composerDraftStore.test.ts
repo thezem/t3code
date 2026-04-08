@@ -1176,12 +1176,9 @@ describe("createDebouncedStorage", () => {
 
 describe("composerDraftStore appendMentionToPrompt", () => {
   it("appends file mention to empty prompt", () => {
-    const { result } = useComposerDraftStore.getInitialState();
     const threadId = ThreadId.makeUnsafe("test-thread-appends-file-mention");
 
-    useComposerDraftStore.setState((state) => {
-      state.appendMentionToPrompt(threadId, "src/index.ts");
-    });
+    useComposerDraftStore.getState().appendMentionToPrompt(threadId, "src/index.ts");
 
     const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("@src/index.ts ");
@@ -1190,9 +1187,7 @@ describe("composerDraftStore appendMentionToPrompt", () => {
   it("appends directory mention to empty prompt", () => {
     const threadId = ThreadId.makeUnsafe("test-thread-appends-dir-mention");
 
-    useComposerDraftStore.setState((state) => {
-      state.appendMentionToPrompt(threadId, "src");
-    });
+    useComposerDraftStore.getState().appendMentionToPrompt(threadId, "src");
 
     const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("@src ");
@@ -1200,11 +1195,10 @@ describe("composerDraftStore appendMentionToPrompt", () => {
 
   it("appends file mention to non-empty prompt with space", () => {
     const threadId = ThreadId.makeUnsafe("test-thread-appends-file-with-space");
+    const state = useComposerDraftStore.getState();
 
-    useComposerDraftStore.setState((state) => {
-      state.setPrompt(threadId, "Check this ");
-      state.appendMentionToPrompt(threadId, "src/utils.ts");
-    });
+    state.setPrompt(threadId, "Check this ");
+    state.appendMentionToPrompt(threadId, "src/utils.ts");
 
     const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("Check this @src/utils.ts ");
@@ -1212,11 +1206,10 @@ describe("composerDraftStore appendMentionToPrompt", () => {
 
   it("appends directory mention to non-empty prompt without space", () => {
     const threadId = ThreadId.makeUnsafe("test-thread-appends-dir-without-space");
+    const state = useComposerDraftStore.getState();
 
-    useComposerDraftStore.setState((state) => {
-      state.setPrompt(threadId, "Check this");
-      state.appendMentionToPrompt(threadId, "components");
-    });
+    state.setPrompt(threadId, "Check this");
+    state.appendMentionToPrompt(threadId, "components");
 
     const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("Check this @components ");
@@ -1225,9 +1218,7 @@ describe("composerDraftStore appendMentionToPrompt", () => {
   it("does not append mention with empty threadId", () => {
     const threadId = ThreadId.makeUnsafe("");
 
-    useComposerDraftStore.setState((state) => {
-      state.appendMentionToPrompt(threadId, "src/index.ts");
-    });
+    useComposerDraftStore.getState().appendMentionToPrompt(threadId, "src/index.ts");
 
     const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft).toBeUndefined();
@@ -1235,11 +1226,10 @@ describe("composerDraftStore appendMentionToPrompt", () => {
 
   it("does not append mention with empty relativePath", () => {
     const threadId = ThreadId.makeUnsafe("test-thread-no-empty-mention");
+    const state = useComposerDraftStore.getState();
 
-    useComposerDraftStore.setState((state) => {
-      state.setPrompt(threadId, "Check this ");
-      state.appendMentionToPrompt(threadId, "");
-    });
+    state.setPrompt(threadId, "Check this ");
+    state.appendMentionToPrompt(threadId, "");
 
     const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("Check this ");
@@ -1247,18 +1237,15 @@ describe("composerDraftStore appendMentionToPrompt", () => {
 
   it("handles nested paths for both files and directories", () => {
     const threadId = ThreadId.makeUnsafe("test-thread-nested-paths");
+    const state = useComposerDraftStore.getState();
 
-    useComposerDraftStore.setState((state) => {
-      state.appendMentionToPrompt(threadId, "src/components/ui/button.tsx");
-    });
+    state.appendMentionToPrompt(threadId, "src/components/ui/button.tsx");
 
     let draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("@src/components/ui/button.tsx ");
 
-    useComposerDraftStore.setState((state) => {
-      state.setPrompt(threadId, "");
-      state.appendMentionToPrompt(threadId, "src/components/ui");
-    });
+    state.setPrompt(threadId, "");
+    state.appendMentionToPrompt(threadId, "src/components/ui");
 
     draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("@src/components/ui ");
@@ -1266,12 +1253,11 @@ describe("composerDraftStore appendMentionToPrompt", () => {
 
   it("allows multiple mentions in sequence", () => {
     const threadId = ThreadId.makeUnsafe("test-thread-multiple-mentions");
+    const state = useComposerDraftStore.getState();
 
-    useComposerDraftStore.setState((state) => {
-      state.appendMentionToPrompt(threadId, "src/utils.ts");
-      state.appendMentionToPrompt(threadId, "components");
-      state.appendMentionToPrompt(threadId, "types/index.ts");
-    });
+    state.appendMentionToPrompt(threadId, "src/utils.ts");
+    state.appendMentionToPrompt(threadId, "components");
+    state.appendMentionToPrompt(threadId, "types/index.ts");
 
     const draft = useComposerDraftStore((state) => state.draftsByThreadId[threadId]);
     expect(draft?.prompt).toBe("@src/utils.ts @components @types/index.ts ");
