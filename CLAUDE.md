@@ -28,7 +28,6 @@ bun run test           # All tests (Vitest)
 # Run tests for a specific workspace
 bun run -w @t3tools/server test
 bun run -w @t3tools/web test
-bun run -w @t3tools/web test:browser  # Playwright browser tests
 ```
 
 ## Release Workflow
