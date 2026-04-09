@@ -1,4 +1,4 @@
-import type { ProjectEntry } from "@t3tools/contracts";
+import type { EnvironmentId, ProjectEntry } from "@t3tools/contracts";
 import { RefreshCwIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ import { FileExplorerTree } from "./FileExplorerTree";
 import { useTheme } from "~/hooks/useTheme";
 
 interface FileExplorerPanelProps {
+  environmentId: EnvironmentId | null;
   cwd: string | null;
   onFileClick: (absolutePath: string) => void;
   onMentionPath: (relativePath: string) => void;
@@ -23,7 +24,12 @@ const FILE_EXPLORER_INITIAL_MAX_DEPTH = 3;
 const EMPTY_ENTRIES: ProjectEntry[] = [];
 const EMPTY_EXPANDED_PATHS: string[] = [];
 
-export function FileExplorerPanel({ cwd, onFileClick, onMentionPath }: FileExplorerPanelProps) {
+export function FileExplorerPanel({
+  environmentId,
+  cwd,
+  onFileClick,
+  onMentionPath,
+}: FileExplorerPanelProps) {
   const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
   const toggleDirectory = useFileExplorerStore((state) => state.toggleDirectory);
@@ -35,10 +41,11 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionPath }: FileExplo
   const [loadedDirectories, setLoadedDirectories] = useState<Record<string, true>>({});
 
   const queryOptions = projectSearchEntriesQueryOptions({
+    environmentId,
     cwd,
     query: "",
     limit: FILE_EXPLORER_LIMIT,
-    enabled: cwd !== null,
+    enabled: cwd !== null && environmentId !== null,
     maxDepth: FILE_EXPLORER_INITIAL_MAX_DEPTH,
   });
 
@@ -82,6 +89,7 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionPath }: FileExplo
       void queryClient
         .fetchQuery(
           directoryEntriesQueryOptions({
+            environmentId,
             cwd,
             dirPath: path,
             limit: FILE_EXPLORER_LIMIT,
@@ -114,7 +122,7 @@ export function FileExplorerPanel({ cwd, onFileClick, onMentionPath }: FileExplo
           });
         });
     },
-    [cwd, loadedDirectories, loadingDirectories, queryClient, toggleDirectory],
+    [cwd, environmentId, loadedDirectories, loadingDirectories, queryClient, toggleDirectory],
   );
 
   const handleRefresh = () => {

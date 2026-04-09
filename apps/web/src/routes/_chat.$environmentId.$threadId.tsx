@@ -1,12 +1,22 @@
-import { ThreadId } from "@t3tools/contracts";
 import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type EnvironmentId, ThreadId } from "@t3tools/contracts";
+import {
+  Suspense,
+  lazy,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import ChatView from "../components/ChatView";
 import { FileExplorerPanel } from "../components/FileExplorerPanel";
 import { FileViewerPanel } from "../components/FileViewerPanel";
 import { useFileViewerStore } from "../fileViewerStore";
+import { threadHasStarted } from "../components/ChatView.logic";
 import { DiffWorkerPoolProvider } from "../components/DiffWorkerPoolProvider";
 import {
   DiffPanelHeaderSkeleton,
@@ -14,14 +24,16 @@ import {
   DiffPanelShell,
   type DiffPanelMode,
 } from "../components/DiffPanelShell";
-import { useComposerDraftStore } from "../composerDraftStore";
+import { finalizePromotedDraftThreadByRef, useComposerDraftStore } from "../composerDraftStore";
 import {
   type DiffRouteSearch,
   parseDiffRouteSearch,
   stripDiffSearchParams,
 } from "../diffRouteSearch";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { useStore } from "../store";
+import { selectEnvironmentState, selectThreadByRef, useStore } from "../store";
+import { createProjectSelectorByRef, createThreadSelectorByRef } from "../storeSelectors";
+import { resolveThreadRouteRef, buildThreadRouteParams } from "../threadRoutes";
 import { Sheet, SheetPopup } from "../components/ui/sheet";
 import { Sidebar, SidebarInset, SidebarProvider, SidebarRail } from "~/components/ui/sidebar";
 import { Schema } from "effect";
@@ -272,16 +284,18 @@ const FileViewerResizablePanel = () => {
   );
 };
 
-const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
-  const { threadId } = props;
-  const projects = useStore((store) => store.projects);
+const FileExplorerResizablePanel = (props: {
+  environmentId: EnvironmentId;
+  threadId: ThreadId;
+}) => {
+  const { environmentId, threadId } = props;
   const isMobile = useMediaQuery(MOBILE_LAYOUT_MEDIA_QUERY);
-  const thread = useStore((store) => store.threads.find((entry) => entry.id === threadId) ?? null);
-  const draftThread = useComposerDraftStore(
-    (store) => store.draftThreadsByThreadId[threadId] ?? null,
-  );
+  const threadRef = useMemo(() => ({ environmentId, threadId }), [environmentId, threadId]);
+  const thread = useStore(useMemo(() => createThreadSelectorByRef(threadRef), [threadRef]));
+  const draftThread = useComposerDraftStore((store) => store.getDraftThreadByRef(threadRef));
   const openFile = useFileViewerStore((store) => store.openFile);
-  const appendMentionToPrompt = useComposerDraftStore((store) => store.appendMentionToPrompt);
+  const getComposerDraft = useComposerDraftStore((store) => store.getComposerDraft);
+  const setPrompt = useComposerDraftStore((store) => store.setPrompt);
   const [width, setWidth] = useState(
     () =>
       getLocalStorageItem(FILE_EXPLORER_WIDTH_STORAGE_KEY, Schema.Finite) ??
@@ -298,23 +312,37 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
     startWidth: number;
     currentWidth: number;
   } | null>(null);
-  const activeProjectId = thread?.projectId ?? draftThread?.projectId ?? null;
-  const activeProjectCwd = projects.find((project) => project.id === activeProjectId)?.cwd ?? null;
+  const activeProjectRef = useMemo(
+    () =>
+      thread
+        ? { environmentId: thread.environmentId, projectId: thread.projectId }
+        : draftThread
+          ? { environmentId: draftThread.environmentId, projectId: draftThread.projectId }
+          : null,
+    [draftThread, thread],
+  );
+  const activeProject = useStore(
+    useMemo(() => createProjectSelectorByRef(activeProjectRef), [activeProjectRef]),
+  );
+  const activeProjectCwd = activeProject?.cwd ?? null;
 
   const handleFileClick = useCallback(
     (relativePath: string) => {
-      if (activeProjectCwd) {
-        openFile(activeProjectCwd, relativePath);
+      if (activeProject?.environmentId && activeProjectCwd) {
+        openFile(activeProject.environmentId, activeProjectCwd, relativePath);
       }
     },
-    [activeProjectCwd, openFile],
+    [activeProject?.environmentId, activeProjectCwd, openFile],
   );
 
   const handleMentionPath = useCallback(
     (relativePath: string) => {
-      appendMentionToPrompt(threadId, relativePath);
+      const currentPrompt = getComposerDraft(threadRef)?.prompt ?? "";
+      const mention = `@${relativePath}`;
+      const separator = currentPrompt.length > 0 && !currentPrompt.endsWith(" ") ? " " : "";
+      setPrompt(threadRef, `${currentPrompt}${separator}${mention} `);
     },
-    [appendMentionToPrompt, threadId],
+    [getComposerDraft, setPrompt, threadRef],
   );
 
   const handleToggleOpen = useCallback(() => {
@@ -420,6 +448,7 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
             </button>
           </div>
           <FileExplorerPanel
+            environmentId={activeProject?.environmentId ?? null}
             cwd={activeProjectCwd}
             onFileClick={handleFileClick}
             onMentionPath={handleMentionPath}
@@ -439,39 +468,60 @@ const FileExplorerResizablePanel = (props: { threadId: ThreadId }) => {
 };
 
 function ChatThreadRouteView() {
-  const bootstrapComplete = useStore((store) => store.bootstrapComplete);
   const navigate = useNavigate();
-  const threadId = Route.useParams({
-    select: (params) => ThreadId.makeUnsafe(params.threadId),
+  const threadRef = Route.useParams({
+    select: (params) => resolveThreadRouteRef(params),
   });
   const search = Route.useSearch();
-  const threadExists = useStore((store) => store.threads.some((thread) => thread.id === threadId));
-  const draftThreadExists = useComposerDraftStore((store) =>
-    Object.hasOwn(store.draftThreadsByThreadId, threadId),
+  const bootstrapComplete = useStore(
+    (store) => selectEnvironmentState(store, threadRef?.environmentId ?? null).bootstrapComplete,
   );
+  const serverThread = useStore(useMemo(() => createThreadSelectorByRef(threadRef), [threadRef]));
+  const threadExists = useStore((store) => selectThreadByRef(store, threadRef) !== undefined);
+  const environmentHasServerThreads = useStore(
+    (store) => selectEnvironmentState(store, threadRef?.environmentId ?? null).threadIds.length > 0,
+  );
+  const draftThreadExists = useComposerDraftStore((store) =>
+    threadRef ? store.getDraftThreadByRef(threadRef) !== null : false,
+  );
+  const draftThread = useComposerDraftStore((store) =>
+    threadRef ? store.getDraftThreadByRef(threadRef) : null,
+  );
+  const environmentHasDraftThreads = useComposerDraftStore((store) => {
+    if (!threadRef) {
+      return false;
+    }
+    return store.hasDraftThreadsInEnvironment(threadRef.environmentId);
+  });
   const routeThreadExists = threadExists || draftThreadExists;
+  const serverThreadStarted = threadHasStarted(serverThread);
+  const environmentHasAnyThreads = environmentHasServerThreads || environmentHasDraftThreads;
   const diffOpen = search.diff === "1";
   const shouldUseDiffSheet = useMediaQuery(DIFF_INLINE_LAYOUT_MEDIA_QUERY);
-  // TanStack Router keeps active route components mounted across param-only navigations
-  // unless remountDeps are configured, so this stays warm across thread switches.
   const [hasOpenedDiff, setHasOpenedDiff] = useState(diffOpen);
   const closeDiff = useCallback(() => {
+    if (!threadRef) {
+      return;
+    }
     void navigate({
-      to: "/$threadId",
-      params: { threadId },
+      to: "/$environmentId/$threadId",
+      params: buildThreadRouteParams(threadRef),
       search: { diff: undefined },
     });
-  }, [navigate, threadId]);
+  }, [navigate, threadRef]);
   const openDiff = useCallback(() => {
+    if (!threadRef) {
+      return;
+    }
     void navigate({
-      to: "/$threadId",
-      params: { threadId },
+      to: "/$environmentId/$threadId",
+      params: buildThreadRouteParams(threadRef),
       search: (previous) => {
         const rest = stripDiffSearchParams(previous);
         return { ...rest, diff: "1" };
       },
     });
-  }, [navigate, threadId]);
+  }, [navigate, threadRef]);
 
   useEffect(() => {
     if (diffOpen) {
@@ -480,17 +530,23 @@ function ChatThreadRouteView() {
   }, [diffOpen]);
 
   useEffect(() => {
-    if (!bootstrapComplete) {
+    if (!threadRef || !bootstrapComplete) {
       return;
     }
 
-    if (!routeThreadExists) {
+    if (!routeThreadExists && environmentHasAnyThreads) {
       void navigate({ to: "/", replace: true });
+    }
+  }, [bootstrapComplete, environmentHasAnyThreads, navigate, routeThreadExists, threadRef]);
+
+  useEffect(() => {
+    if (!threadRef || !serverThreadStarted || !draftThread?.promotedTo) {
       return;
     }
-  }, [bootstrapComplete, navigate, routeThreadExists, threadId]);
+    finalizePromotedDraftThreadByRef(threadRef);
+  }, [draftThread?.promotedTo, serverThreadStarted, threadRef]);
 
-  if (!bootstrapComplete || !routeThreadExists) {
+  if (!threadRef || !bootstrapComplete || !routeThreadExists) {
     return null;
   }
 
@@ -500,10 +556,17 @@ function ChatThreadRouteView() {
     return (
       <>
         <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
-          <ChatView threadId={threadId} />
+          <ChatView
+            environmentId={threadRef.environmentId}
+            threadId={threadRef.threadId}
+            routeKind="server"
+          />
         </SidebarInset>
         <FileViewerResizablePanel />
-        <FileExplorerResizablePanel threadId={threadId} />
+        <FileExplorerResizablePanel
+          environmentId={threadRef.environmentId}
+          threadId={threadRef.threadId}
+        />
         <DiffPanelInlineSidebar
           diffOpen={diffOpen}
           onCloseDiff={closeDiff}
@@ -517,10 +580,17 @@ function ChatThreadRouteView() {
   return (
     <>
       <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
-        <ChatView threadId={threadId} />
+        <ChatView
+          environmentId={threadRef.environmentId}
+          threadId={threadRef.threadId}
+          routeKind="server"
+        />
       </SidebarInset>
       <FileViewerResizablePanel />
-      <FileExplorerResizablePanel threadId={threadId} />
+      <FileExplorerResizablePanel
+        environmentId={threadRef.environmentId}
+        threadId={threadRef.threadId}
+      />
       <DiffPanelSheet diffOpen={diffOpen} onCloseDiff={closeDiff}>
         {shouldRenderDiffContent ? <LazyDiffPanel mode="sheet" /> : null}
       </DiffPanelSheet>
@@ -528,7 +598,7 @@ function ChatThreadRouteView() {
   );
 }
 
-export const Route = createFileRoute("/_chat/$threadId")({
+export const Route = createFileRoute("/_chat/$environmentId/$threadId")({
   validateSearch: (search) => parseDiffRouteSearch(search),
   search: {
     middlewares: [retainSearchParams<DiffRouteSearch>(["diff"])],

@@ -1,3 +1,4 @@
+import type { EnvironmentId } from "@t3tools/contracts";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2Icon, XIcon } from "lucide-react";
@@ -54,12 +55,14 @@ function inferMonacoLanguage(relativePath: string): string {
 // ── File content (editor) ─────────────────────────────────────────────
 
 function FileContent({
+  environmentId,
   cwd,
   relativePath,
   monacoTheme,
   wordWrap,
   onToggleWordWrap,
 }: {
+  environmentId: EnvironmentId;
   cwd: string;
   relativePath: string;
   monacoTheme: "vs-dark" | "vs";
@@ -68,7 +71,7 @@ function FileContent({
 }) {
   const queryClient = useQueryClient();
   const language = inferMonacoLanguage(relativePath);
-  const queryOptions = projectReadFileQueryOptions({ cwd, relativePath });
+  const queryOptions = projectReadFileQueryOptions({ environmentId, cwd, relativePath });
 
   const { data, isLoading, isError } = useQuery(queryOptions);
 
@@ -86,7 +89,7 @@ function FileContent({
   const handleSave = () => {
     if (!isDirty) return;
     saveMutation.mutate(
-      { cwd, relativePath, contents: editorValue! },
+      { environmentId, cwd, relativePath, contents: editorValue! },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
@@ -169,13 +172,13 @@ function FileContent({
 // ── Panel — fills the Sidebar container provided by FileViewerInlineSidebar ──
 
 export function FileViewerPanel() {
-  const { cwd, relativePath, close } = useFileViewerStore();
+  const { environmentId, cwd, relativePath, close } = useFileViewerStore();
   const { resolvedTheme } = useTheme();
   const monacoTheme = resolvedTheme === "dark" ? "vs-dark" : "vs";
   const [wordWrap, setWordWrap] = useState<"on" | "off">("off");
   const toggleWordWrap = () => setWordWrap((w) => (w === "off" ? "on" : "off"));
 
-  if (!cwd || !relativePath) {
+  if (!environmentId || !cwd || !relativePath) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-xs text-muted-foreground/50">
         No file selected.
@@ -242,6 +245,7 @@ export function FileViewerPanel() {
 
       {/* Monaco editor */}
       <FileContent
+        environmentId={environmentId}
         cwd={cwd}
         relativePath={relativePath}
         monacoTheme={monacoTheme}

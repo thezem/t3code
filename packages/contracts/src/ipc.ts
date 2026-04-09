@@ -109,8 +109,14 @@ export interface DesktopUpdateCheckResult {
   state: DesktopUpdateState;
 }
 
+export interface DesktopEnvironmentBootstrap {
+  label: string;
+  wsUrl: string | null;
+}
+
 export interface DesktopBridge {
   getWsUrl: () => string | null;
+  getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
   pickFolder: () => Promise<string | null>;
   confirm: (message: string) => Promise<boolean>;
   setTheme: (theme: DesktopTheme) => Promise<void>;
@@ -127,11 +133,50 @@ export interface DesktopBridge {
   onUpdateState: (listener: (state: DesktopUpdateState) => void) => () => void;
 }
 
-export interface NativeApi {
+/**
+ * APIs bound to the local app shell, not to any particular backend environment.
+ *
+ * These capabilities describe the desktop/browser host that the user is
+ * currently running: dialogs, editor/external-link opening, context menus, and
+ * app-level settings/config access. They must not be used as a proxy for
+ * "whatever environment the user is targeting", because in a multi-environment
+ * world the local shell and a selected backend environment are distinct
+ * concepts.
+ */
+export interface LocalApi {
   dialogs: {
     pickFolder: () => Promise<string | null>;
     confirm: (message: string) => Promise<boolean>;
   };
+  shell: {
+    openInEditor: (cwd: string, editor: EditorId) => Promise<void>;
+    openExternal: (url: string) => Promise<void>;
+  };
+  contextMenu: {
+    show: <T extends string>(
+      items: readonly ContextMenuItem<T>[],
+      position?: { x: number; y: number },
+    ) => Promise<T | null>;
+  };
+  server: {
+    getConfig: () => Promise<ServerConfig>;
+    refreshProviders: () => Promise<ServerProviderUpdatedPayload>;
+    upsertKeybinding: (input: ServerUpsertKeybindingInput) => Promise<ServerUpsertKeybindingResult>;
+    getSettings: () => Promise<ServerSettings>;
+    updateSettings: (patch: ServerSettingsPatch) => Promise<ServerSettings>;
+  };
+}
+
+/**
+ * APIs bound to a specific backend environment connection.
+ *
+ * These operations must always be routed with explicit environment context.
+ * They represent remote stateful capabilities such as orchestration, terminal,
+ * project, and git operations. In multi-environment mode, each environment gets
+ * its own instance of this surface, and callers should resolve it by
+ * `environmentId` rather than reaching through the local desktop bridge.
+ */
+export interface EnvironmentApi {
   terminal: {
     open: (input: typeof TerminalOpenInput.Encoded) => Promise<TerminalSessionSnapshot>;
     write: (input: typeof TerminalWriteInput.Encoded) => Promise<void>;
@@ -147,12 +192,7 @@ export interface NativeApi {
     readFile: (input: ProjectReadFileInput) => Promise<ProjectReadFileResult>;
     listSkills: (input: ProjectListSkillsInput) => Promise<ProjectListSkillsResult>;
   };
-  shell: {
-    openInEditor: (cwd: string, editor: EditorId) => Promise<void>;
-    openExternal: (url: string) => Promise<void>;
-  };
   git: {
-    // Existing branch/worktree API
     listBranches: (input: GitListBranchesInput) => Promise<GitListBranchesResult>;
     createWorktree: (input: GitCreateWorktreeInput) => Promise<GitCreateWorktreeResult>;
     removeWorktree: (input: GitRemoveWorktreeInput) => Promise<void>;
@@ -163,7 +203,6 @@ export interface NativeApi {
     preparePullRequestThread: (
       input: GitPreparePullRequestThreadInput,
     ) => Promise<GitPreparePullRequestThreadResult>;
-    // Stacked action API
     pull: (input: GitPullInput) => Promise<GitPullResult>;
     refreshStatus: (input: GitStatusInput) => Promise<GitStatusResult>;
     onStatus: (
@@ -173,19 +212,6 @@ export interface NativeApi {
         onResubscribe?: () => void;
       },
     ) => () => void;
-  };
-  contextMenu: {
-    show: <T extends string>(
-      items: readonly ContextMenuItem<T>[],
-      position?: { x: number; y: number },
-    ) => Promise<T | null>;
-  };
-  server: {
-    getConfig: () => Promise<ServerConfig>;
-    refreshProviders: () => Promise<ServerProviderUpdatedPayload>;
-    upsertKeybinding: (input: ServerUpsertKeybindingInput) => Promise<ServerUpsertKeybindingResult>;
-    getSettings: () => Promise<ServerSettings>;
-    updateSettings: (patch: ServerSettingsPatch) => Promise<ServerSettings>;
   };
   orchestration: {
     getSnapshot: () => Promise<OrchestrationReadModel>;

@@ -83,6 +83,7 @@
         "@lexical/react": "^0.41.0",
         "@monaco-editor/react": "^4.7.0",
         "@pierre/diffs": "^1.1.0-beta.16",
+        "@t3tools/client-runtime": "workspace:*",
         "@t3tools/contracts": "workspace:*",
         "@t3tools/shared": "workspace:*",
         "@tanstack/react-pacer": "^0.19.4",
@@ -120,6 +121,18 @@
         "typescript": "catalog:",
         "vite": "^8.0.0",
         "vite-plugin-monaco-editor": "^1.1.0",
+        "vitest": "catalog:",
+      },
+    },
+    "packages/client-runtime": {
+      "name": "@t3tools/client-runtime",
+      "version": "0.0.0-alpha.1",
+      "dependencies": {
+        "@t3tools/contracts": "workspace:*",
+      },
+      "devDependencies": {
+        "@effect/language-service": "catalog:",
+        "typescript": "catalog:",
         "vitest": "catalog:",
       },
     },
@@ -668,6 +681,8 @@
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "@szmarczak/http-timer": ["@szmarczak/http-timer@4.0.6", "", { "dependencies": { "defer-to-connect": "^2.0.0" } }, "sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w=="],
+
+    "@t3tools/client-runtime": ["@t3tools/client-runtime@workspace:packages/client-runtime"],
 
     "@t3tools/contracts": ["@t3tools/contracts@workspace:packages/contracts"],
 
