@@ -50,6 +50,14 @@ Claude Agent SDK guide: [docs/claude-agent-sdk.md](./docs/claude-agent-sdk.md)
 
 ## If you REALLY want to contribute still.... read this first
 
+Before local development, prepare the environment and install dependencies:
+
+```bash
+# Optional: only needed if you use mise for dev tool management.
+mise install
+bun install .
+```
+
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening an issue or PR.
 
 Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
