@@ -3,12 +3,12 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  type ProjectListSkillsInput,
   type ProjectListSkillsResult,
   type ProjectSkill,
-  ProjectSkill as ProjectSkillSchema,
   type ProjectSkillIssue,
-} from "@t3tools/contracts";
-import { Effect, Layer, Schema } from "effect";
+} from "../Services/ProjectSkills.ts";
+import { Effect, Layer } from "effect";
 
 import {
   ProjectSkills,
@@ -93,9 +93,9 @@ function parseFlatFrontmatter(frontmatter: string): Record<string, string> {
 function displayPathForSkillFile(input: {
   readonly cwd: string;
   readonly filePath: string;
-  readonly source: "workspace" | "global";
+  readonly scope: "workspace" | "global";
 }): string {
-  if (input.source === "workspace") {
+  if (input.scope === "workspace") {
     return path.relative(input.cwd, input.filePath).replaceAll(path.sep, "/");
   }
   const home = os.homedir();
@@ -109,7 +109,7 @@ function displayPathForSkillFile(input: {
 function parseSkillFile(input: {
   readonly cwd: string;
   readonly directoryPath: string;
-  readonly source: "workspace" | "global";
+  readonly scope: "workspace" | "global";
 }): {
   readonly skill: ResolvedProjectSkill | null;
   readonly issue: ProjectSkillIssue | null;
@@ -118,7 +118,7 @@ function parseSkillFile(input: {
   const displayPath = displayPathForSkillFile({
     cwd: input.cwd,
     filePath: skillFilePath,
-    source: input.source,
+    scope: input.scope,
   });
   const raw = safeReadTextFile(skillFilePath);
   if (raw === null) {
@@ -138,18 +138,12 @@ function parseSkillFile(input: {
     if (parsedFrontmatter.name !== directoryName) {
       throw new Error("Skill frontmatter 'name' must match the directory name.");
     }
-    const skill = Schema.decodeUnknownSync(ProjectSkillSchema)({
-      name: parsedFrontmatter.name,
-      source: input.source,
-      path: displayPath,
-      description: parsedFrontmatter.description,
-    });
     return {
       skill: {
-        name: skill.name,
-        source: skill.source,
-        path: skill.path,
-        description: skill.description,
+        name: parsedFrontmatter.name,
+        scope: input.scope,
+        path: displayPath,
+        description: parsedFrontmatter.description ?? "",
         contents: body,
       },
       issue: null,
@@ -169,7 +163,7 @@ function parseSkillFile(input: {
 function collectDirectorySkills(input: {
   readonly cwd: string;
   readonly directoryPath: string;
-  readonly source: "workspace" | "global";
+  readonly scope: "workspace" | "global";
 }): ProjectListSkillsResult {
   const directoryNames = safeReadDirectoryNames(input.directoryPath);
   const skills: ProjectSkill[] = [];
@@ -179,12 +173,12 @@ function collectDirectorySkills(input: {
     const parsed = parseSkillFile({
       cwd: input.cwd,
       directoryPath: path.join(input.directoryPath, directoryName),
-      source: input.source,
+      scope: input.scope,
     });
     if (parsed.skill) {
       skills.push({
         name: parsed.skill.name,
-        source: parsed.skill.source,
+        scope: parsed.skill.scope,
         path: parsed.skill.path,
         description: parsed.skill.description,
       });
@@ -198,17 +192,17 @@ function collectDirectorySkills(input: {
 }
 
 export const makeProjectSkills = Effect.sync(() => {
-  const listSkills: ProjectSkillsShape["listSkills"] = (input) =>
+  const listSkills: ProjectSkillsShape["listSkills"] = (input: ProjectListSkillsInput) =>
     Effect.sync(() => {
       const workspaceResult = collectDirectorySkills({
         cwd: input.cwd,
         directoryPath: path.join(input.cwd, WORKSPACE_SKILLS_DIRECTORY),
-        source: "workspace",
+        scope: "workspace",
       });
       const globalResult = collectDirectorySkills({
         cwd: input.cwd,
         directoryPath: path.join(os.homedir(), GLOBAL_SKILLS_DIRECTORY),
-        source: "global",
+        scope: "global",
       });
 
       const skillsByName = new Map<string, ProjectSkill>();
@@ -241,7 +235,7 @@ export const makeProjectSkills = Effect.sync(() => {
         const workspaceSkill = parseSkillFile({
           cwd: input.cwd,
           directoryPath: path.join(input.cwd, WORKSPACE_SKILLS_DIRECTORY, skillName),
-          source: "workspace",
+          scope: "workspace",
         }).skill;
         if (workspaceSkill) {
           resolvedSkills.push(workspaceSkill);
@@ -251,7 +245,7 @@ export const makeProjectSkills = Effect.sync(() => {
         const globalSkill = parseSkillFile({
           cwd: input.cwd,
           directoryPath: path.join(os.homedir(), GLOBAL_SKILLS_DIRECTORY, skillName),
-          source: "global",
+          scope: "global",
         }).skill;
         if (globalSkill) {
           resolvedSkills.push(globalSkill);

@@ -1,6 +1,6 @@
 import { memo } from "react";
 
-import type { ProjectSkill, ProjectSkillName } from "@t3tools/contracts";
+import type { ServerProviderSkill } from "@t3tools/contracts";
 import { CheckIcon, SparklesIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
@@ -9,12 +9,12 @@ import { buttonVariants } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 
 export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
-  skills: ReadonlyArray<ProjectSkill>;
-  selectedSkillNames: ReadonlyArray<ProjectSkillName>;
+  skills: ReadonlyArray<ServerProviderSkill>;
+  selectedSkillNames: ReadonlyArray<ServerProviderSkill["name"]>;
   issuesCount: number;
   disabled: boolean;
   compact: boolean;
-  onToggleSkill: (skillName: ProjectSkillName) => void;
+  onToggleSkill: (skillName: ServerProviderSkill["name"]) => void;
 }) {
   const selectedCount = props.selectedSkillNames.length;
 
@@ -50,9 +50,10 @@ export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
             <div className="space-y-1">
               {props.skills.map((skill) => {
                 const isSelected = props.selectedSkillNames.includes(skill.name);
+                const skillScopeLabel = skill.scope === "workspace" ? "Workspace" : "Global";
                 return (
                   <button
-                    key={`${skill.source}:${skill.name}`}
+                    key={`${skill.path}:${skill.name}`}
                     type="button"
                     onClick={() => props.onToggleSkill(skill.name)}
                     className={cn(
@@ -81,9 +82,7 @@ export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
                         <span className="truncate font-medium text-foreground text-sm">
                           {skill.name}
                         </span>
-                        <Badge variant="secondary">
-                          {skill.source === "workspace" ? "Workspace" : "Global"}
-                        </Badge>
+                        <Badge variant="secondary">{skillScopeLabel}</Badge>
                       </span>
                       <span className="mt-1 line-clamp-3 block text-muted-foreground text-xs leading-relaxed">
                         {skill.description}

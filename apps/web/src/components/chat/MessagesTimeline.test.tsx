@@ -47,20 +47,20 @@ const ACTIVE_THREAD_ENVIRONMENT_ID = "environment-local" as never;
 describe("MessagesTimeline", () => {
   it.todo("renders inline terminal labels with the composer chip UI", async () => {
     const { MessagesTimeline } = await import("./MessagesTimeline");
+    const listRef = { current: null };
     const markup = renderToStaticMarkup(
       <MessagesTimeline
-        hasMessages
         isWorking={false}
         activeTurnInProgress={false}
         activeTurnStartedAt={null}
-        scrollContainer={null}
+        listRef={listRef}
         timelineEntries={[
           {
             id: "entry-1",
             kind: "message",
             createdAt: "2026-03-17T19:12:28.000Z",
             message: {
-              id: MessageId.makeUnsafe("message-2"),
+              id: MessageId.make("message-2"),
               role: "user",
               text: [
                 "yoo what's @terminal-1:1-5 mean",
@@ -79,9 +79,7 @@ describe("MessagesTimeline", () => {
         completionDividerBeforeEntryId={null}
         completionSummary={null}
         turnDiffSummaryByAssistantMessageId={new Map()}
-        nowIso="2026-03-17T19:12:30.000Z"
-        expandedWorkGroups={{}}
-        onToggleWorkGroup={() => {}}
+        routeThreadKey="environment-local:thread-1"
         onOpenTurnDiff={() => {}}
         revertTurnCountByUserMessageId={new Map()}
         onRevertUserMessage={() => {}}
@@ -92,6 +90,7 @@ describe("MessagesTimeline", () => {
         resolvedTheme="light"
         timestampFormat="locale"
         workspaceRoot={undefined}
+        onIsAtEndChange={() => {}}
       />,
     );
 
@@ -102,13 +101,13 @@ describe("MessagesTimeline", () => {
 
   it("renders context compaction entries in the normal work log", async () => {
     const { MessagesTimeline } = await import("./MessagesTimeline");
+    const listRef = { current: null };
     const markup = renderToStaticMarkup(
       <MessagesTimeline
-        hasMessages
         isWorking={false}
         activeTurnInProgress={false}
         activeTurnStartedAt={null}
-        scrollContainer={null}
+        listRef={listRef}
         timelineEntries={[
           {
             id: "entry-1",
@@ -125,9 +124,7 @@ describe("MessagesTimeline", () => {
         completionDividerBeforeEntryId={null}
         completionSummary={null}
         turnDiffSummaryByAssistantMessageId={new Map()}
-        nowIso="2026-03-17T19:12:30.000Z"
-        expandedWorkGroups={{}}
-        onToggleWorkGroup={() => {}}
+        routeThreadKey="environment-local:thread-1"
         onOpenTurnDiff={() => {}}
         revertTurnCountByUserMessageId={new Map()}
         onRevertUserMessage={() => {}}
@@ -138,6 +135,7 @@ describe("MessagesTimeline", () => {
         resolvedTheme="light"
         timestampFormat="locale"
         workspaceRoot={undefined}
+        onIsAtEndChange={() => {}}
       />,
     );
 

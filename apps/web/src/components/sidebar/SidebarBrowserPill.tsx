@@ -1,7 +1,7 @@
 import { ExternalLinkIcon, GlobeIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { isElectron } from "../../env";
-import { resolveDesktopBrowserUrl } from "../../lib/utils";
 import { toastManager } from "../ui/toast";
 import { Button } from "../ui/button";
 
@@ -10,7 +10,34 @@ export function SidebarBrowserPill() {
     return null;
   }
 
-  const browserUrl = resolveDesktopBrowserUrl();
+  const [browserUrl, setBrowserUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    const bridge = window.desktopBridge;
+    if (!bridge) {
+      setBrowserUrl(null);
+      return;
+    }
+
+    void bridge
+      .getServerExposureState()
+      .then((state) => {
+        if (!disposed) {
+          setBrowserUrl(state.endpointUrl);
+        }
+      })
+      .catch(() => {
+        if (!disposed) {
+          setBrowserUrl(null);
+        }
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
   if (!browserUrl) {
     return null;
   }
