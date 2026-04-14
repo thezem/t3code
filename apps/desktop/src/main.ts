@@ -21,7 +21,6 @@ import {
 import type { MenuItemConstructorOptions } from "electron";
 import type {
   ClientSettings,
-  DesktopTheme,
   DesktopServerExposureMode,
   DesktopServerExposureState,
   PersistedSavedEnvironmentRecord,
@@ -1336,7 +1335,6 @@ function startBackend(): void {
       `${JSON.stringify({
         mode: "desktop",
         noBrowser: true,
-        host: "0.0.0.0",
         port: backendPort,
         t3Home: BASE_DIR,
         host: backendBindHost,
